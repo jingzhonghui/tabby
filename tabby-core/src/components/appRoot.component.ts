@@ -252,6 +252,12 @@ export class AppRootComponent {
         return this.config.store?.appearance.vibrancy
     }
 
+    @HostBinding('class.rounded-window') get isRoundedWindow () {
+        return this.config.store?.appearance?.frame !== 'native'
+            && !this.hostWindow.isFullscreen
+            && !this.hostWindow.isMaximized()
+    }
+
     private async getToolbarButtons (aboveZero: boolean): Promise<Command[]> {
         return (await this.commands.getCommands({ tab: this.app.activeTab ?? undefined }))
             .filter(x => x.locations?.includes(aboveZero ? CommandLocation.RightToolbar : CommandLocation.LeftToolbar))

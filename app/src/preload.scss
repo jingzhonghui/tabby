@@ -1,5 +1,11 @@
 app-root {
   background: #1D272D;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+app-root.rounded-window {
+  border-radius: 8px;
 }
 
 .preload-logo {
