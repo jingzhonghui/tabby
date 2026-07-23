@@ -89,6 +89,26 @@ $tab-border-radius: 4px;
     }
 }
 
+.content:not(.tabs-on-left):not(.tabs-on-right) > .tab-bar > .tabs {
+    box-sizing: border-box;
+    gap: calc(5px * var(--spaciness));
+    padding: calc(4px * var(--spaciness)) 0 calc(4px * var(--spaciness)) calc(5px * var(--spaciness));
+
+    tab-header {
+        border: 1px solid transparent;
+        border-radius: calc(7px * var(--spaciness));
+        background: var(--theme-bg-more);
+
+        &.active {
+            border-color: color-mix(in srgb, var(--theme-fg) 14%, transparent);
+        }
+    }
+
+    ::ng-deep tab-header .current-tab-indicator {
+        display: none;
+    }
+}
+
 .tab-bar {
     flex: none;
     height: var(--tabs-height);

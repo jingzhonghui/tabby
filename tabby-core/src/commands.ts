@@ -28,11 +28,12 @@ export class CoreCommandProvider extends CommandProvider {
         return [
             {
                 id: 'core:profile-selector',
-                locations: [CommandLocation.LeftToolbar, CommandLocation.StartPage],
+                locations: [CommandLocation.RightToolbar, CommandLocation.StartPage],
                 label: this.translate.instant('Profiles & connections'),
                 icon: this.hostApp.platform === Platform.Web
                     ? require('./icons/plus.svg')
                     : require('./icons/profiles.svg'),
+                weight: 9,
                 run: async () => this.activate(),
             },
             ...this.profilesService.getRecentProfiles().map((profile, index) => ({
