@@ -5,3 +5,20 @@
         width: 100%;
     }
 }
+
+::ng-deep .card-header .text-left,
+::ng-deep .card-header .text-left.me-auto {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+::ng-deep .card-header small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@container settings-content (max-width: 42rem) {
+    ::ng-deep .card-header button {
+        flex-wrap: wrap;
+    }
+}

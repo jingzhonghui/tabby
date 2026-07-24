@@ -8,16 +8,35 @@ import { SettingsTabProvider } from '../api'
     styles: [`
         :host {
             display: block;
+            width: 100%;
             padding-bottom: 20px;
-            max-width: 600px;
+            margin-inline: auto;
+            container-name: settings-content;
+            container-type: inline-size;
+            --settings-control-width: 20rem;
         }
 
-        :host(.full-width) {
-            width: 100%;
+        :host(.settings-layout-compact) {
+            max-width: 46rem;
+            --settings-content-width: 46rem;
+        }
+
+        :host(.settings-layout-form) {
+            max-width: 56rem;
+            --settings-content-width: 56rem;
+        }
+
+        :host(.settings-layout-wide) {
+            max-width: 72rem;
+            --settings-content-width: 72rem;
+        }
+
+        :host(.settings-layout-workspace) {
             height: 100%;
             max-width: none;
             padding-bottom: 0;
             overflow: hidden;
+            --settings-content-width: none;
         }
     `],
 })
@@ -26,8 +45,8 @@ export class SettingsTabBodyComponent {
     @ViewChild('placeholder', { read: ViewContainerRef }) placeholder: ViewContainerRef
     component: ComponentRef<unknown>
 
-    @HostBinding('class.full-width') get fullWidth (): boolean {
-        return this.provider.id === 'profiles'
+    @HostBinding('class') get layoutClass (): string {
+        return `settings-layout-${this.provider.layout}`
     }
 
     constructor (private componentFactoryResolver: ComponentFactoryResolver) { }

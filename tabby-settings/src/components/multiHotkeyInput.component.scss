@@ -1,9 +1,19 @@
 :host {
     display: flex;
+    max-width: 100%;
     flex-wrap: nowrap;
+    overflow-x: auto;
 
     &:hover .add {
         opacity: 1;
+    }
+}
+
+@container settings-content (max-width: 42rem) {
+    :host {
+        flex-wrap: wrap;
+        overflow-x: visible;
+        gap: .25rem;
     }
 }
 

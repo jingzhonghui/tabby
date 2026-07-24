@@ -7,13 +7,13 @@ h3.mb-3(translate) Hotkeys
 
 .mb-3
     ng-container(*ngFor='let hotkey of hotkeyDescriptions')
-        .row.align-items-center(*ngIf='!hotkeyFilter || hotkeyFilterFn(hotkey, hotkeyFilter)')
-            .col-8.py-2.hotkey-name-cell
+        .hotkey-row(*ngIf='!hotkeyFilter || hotkeyFilterFn(hotkey, hotkeyFilter)')
+            .hotkey-name-cell
                 span(
                     [ngbTooltip]='hotkey.id',
                     (click)='copyId(hotkey.id)'
                 ) {{hotkey.name|translate}}
-            .col-4.pe-5
+            .hotkey-input-cell
                 multi-hotkey-input(
                     [hotkeys]='getHotkeys(hotkey.id) || []',
                     (hotkeysChange)='setHotkeys(hotkey.id, $event)'

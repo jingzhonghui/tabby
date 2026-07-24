@@ -1,0 +1,29 @@
+.config-row {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+.config-copy {
+    min-width: 10rem;
+    margin-right: auto;
+}
+
+.config-actions {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+@container settings-content (max-width: 42rem) {
+    .config-row {
+        flex-wrap: wrap;
+    }
+
+    .config-actions {
+        width: 100%;
+        justify-content: flex-start;
+        padding-left: 2rem;
+    }
+}

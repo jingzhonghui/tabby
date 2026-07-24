@@ -57,38 +57,38 @@ ul.nav-tabs(ngbNav, #nav='ngbNav')
 
                 ng-container(*ngIf='configs !== null')
                     .list-group.list-group-light
-                        .list-group-item.d-flex.align-items-center(
+                        .list-group-item.config-row(
                             *ngFor='let cfg of configs',
                             [class.active]='isActiveConfig(cfg)',
                         )
                             i.fas.fa-fw.text-success([class.fa-check]='isActiveConfig(cfg)')
                             i.fas.fa-fw.fa-file
-                            .ms-2.d-flex.flex-column.align-items-start
+                            .ms-2.d-flex.flex-column.align-items-start.config-copy
                                 div {{cfg.name}}
                                 small.text-muted(
                                     translate='Modified on {date}',
                                     [translateParams]='{date: cfg.modified_at|tabbyDate}'
                                 )
-                            .me-auto
-                            button.btn.btn-link.ms-1(
-                                (click)='uploadAndSync(cfg)',
-                                [class.hover-reveal]='!isActiveConfig(cfg)'
-                            )
-                                i.fas.fa-arrow-up
-                                span.ms-2(*ngIf='isActiveConfig(cfg)', translate) Upload
-                                span.ms-2(*ngIf='!isActiveConfig(cfg)', translate) Replace
-                            button.btn.btn-link.ms-1(
-                                (click)='downloadAndSync(cfg)',
-                                [class.hover-reveal]='!isActiveConfig(cfg)'
-                            )
-                                i.fas.fa-arrow-down
-                                span.ms-2(translate) Download
-                            button.btn.btn-link.ms-1(
-                                (click)='delete(cfg)',
-                                [class.hover-reveal]='!isActiveConfig(cfg)'
-                            )
-                                i.fas.fa-trash
-                                span.ms-2(translate) Delete
+                            .config-actions
+                                button.btn.btn-link.ms-1(
+                                    (click)='uploadAndSync(cfg)',
+                                    [class.hover-reveal]='!isActiveConfig(cfg)'
+                                )
+                                    i.fas.fa-arrow-up
+                                    span.ms-2(*ngIf='isActiveConfig(cfg)', translate) Upload
+                                    span.ms-2(*ngIf='!isActiveConfig(cfg)', translate) Replace
+                                button.btn.btn-link.ms-1(
+                                    (click)='downloadAndSync(cfg)',
+                                    [class.hover-reveal]='!isActiveConfig(cfg)'
+                                )
+                                    i.fas.fa-arrow-down
+                                    span.ms-2(translate) Download
+                                button.btn.btn-link.ms-1(
+                                    (click)='delete(cfg)',
+                                    [class.hover-reveal]='!isActiveConfig(cfg)'
+                                )
+                                    i.fas.fa-trash
+                                    span.ms-2(translate) Delete
                         a.list-group-item.list-group-item-action.d-flex.align-items-center(
                             href='#',
                             (click)='uploadAsNew()'

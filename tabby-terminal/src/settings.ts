@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { SettingsTabProvider } from 'tabby-settings'
+import { SettingsTabLayout, SettingsTabProvider } from 'tabby-settings'
 
 import { AppearanceSettingsTabComponent } from './components/appearanceSettingsTab.component'
 import { TerminalSettingsTabComponent } from './components/terminalSettingsTab.component'
@@ -13,6 +13,7 @@ export class AppearanceSettingsTabProvider extends SettingsTabProvider {
     icon = 'swatchbook'
     title = this.translate.instant('Appearance')
     prioritized = true
+    layout: SettingsTabLayout = 'form'
 
     constructor (private translate: TranslateService) { super() }
 
@@ -27,6 +28,7 @@ export class ColorSchemeSettingsTabProvider extends SettingsTabProvider {
     id = 'terminal-color-scheme'
     icon = 'palette'
     title = this.translate.instant('Color scheme')
+    layout: SettingsTabLayout = 'wide'
 
     constructor (private translate: TranslateService) { super() }
 
@@ -42,6 +44,7 @@ export class TerminalSettingsTabProvider extends SettingsTabProvider {
     icon = 'terminal'
     title = this.translate.instant('Terminal')
     prioritized = true
+    layout: SettingsTabLayout = 'form'
 
     constructor (private translate: TranslateService) { super() }
 

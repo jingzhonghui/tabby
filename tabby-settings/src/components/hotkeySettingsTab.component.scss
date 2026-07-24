@@ -1,3 +1,30 @@
 .hotkey-name-cell > div {
     cursor: pointer;
 }
+
+.hotkey-row {
+    display: grid;
+    grid-template-columns: minmax(16rem, 1fr) minmax(18rem, .75fr);
+    align-items: center;
+    gap: 1.5rem;
+    min-height: 3.25rem;
+    padding: .4rem .75rem;
+    border-radius: .4rem;
+
+    &:hover {
+        background: var(--theme-bg-less);
+    }
+}
+
+.hotkey-name-cell,
+.hotkey-input-cell {
+    min-width: 0;
+}
+
+@container settings-content (max-width: 42rem) {
+    .hotkey-row {
+        grid-template-columns: 1fr;
+        gap: .5rem;
+        padding: .75rem .25rem;
+    }
+}

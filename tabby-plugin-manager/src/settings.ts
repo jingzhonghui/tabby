@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { SettingsTabProvider } from 'tabby-settings'
+import { SettingsTabLayout, SettingsTabProvider } from 'tabby-settings'
 
 import { PluginsSettingsTabComponent } from './components/pluginsSettingsTab.component'
 
@@ -8,6 +8,7 @@ import { PluginsSettingsTabComponent } from './components/pluginsSettingsTab.com
 export class PluginsSettingsTabProvider extends SettingsTabProvider {
     id = 'plugins'
     title = 'Plugins'
+    layout: SettingsTabLayout = 'wide'
 
     getComponentType (): any {
         return PluginsSettingsTabComponent

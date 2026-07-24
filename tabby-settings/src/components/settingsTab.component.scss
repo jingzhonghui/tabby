@@ -57,7 +57,7 @@
                 }
             }
 
-            &:has(settings-tab-body.full-width) {
+            &:has(settings-tab-body.settings-layout-workspace) {
                 padding: 0;
                 overflow: hidden;
 
@@ -79,4 +79,39 @@ textarea {
     font-family: 'Source Code Pro', monospace;
     font-size: 12px;
     min-height: 120px;
+}
+
+@media (max-width: 900px) {
+    :host > .content {
+        > .nav {
+            width: 190px;
+        }
+
+        > .tab-content > ::ng-deep .tab-pane {
+            padding-inline: 20px;
+        }
+    }
+}
+
+@media (max-width: 650px) {
+    :host > .content {
+        flex-direction: column;
+
+        > .nav {
+            width: 100%;
+            padding: 10px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            flex-direction: row !important;
+
+            > li {
+                flex: 0 0 auto;
+            }
+        }
+
+        > .tab-content {
+            min-height: 0;
+            padding-top: 10px;
+        }
+    }
 }

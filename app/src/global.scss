@@ -173,7 +173,54 @@ ngb-typeahead-window {
 }
 
 .content-box {
-    max-width: 600px;
+    width: 100%;
+    max-width: var(--settings-content-width, 600px);
+}
+
+.settings-page-form {
+    width: 100%;
+    max-width: 56rem;
+    margin-inline: auto;
+    --settings-content-width: 56rem;
+    --settings-control-width: 20rem;
+    container-name: settings-content;
+    container-type: inline-size;
+}
+
+settings-tab-body .form-line,
+.settings-page-form .form-line {
+    gap: 24px;
+
+    .header {
+        min-width: 0;
+    }
+
+    &>.form-control,
+    &>.input-group {
+        width: min(40%, var(--settings-control-width, 20rem));
+        max-width: var(--settings-control-width, 20rem);
+        flex: 0 0 auto;
+    }
+}
+
+@container settings-content (max-width: 42rem) {
+    settings-tab-body .form-line,
+    .settings-page-form .form-line {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 10px;
+
+        .header {
+            width: 100%;
+            margin-right: 0;
+        }
+
+        &>.form-control,
+        &>.input-group {
+            width: 100% !important;
+            max-width: none;
+        }
+    }
 }
 
 
