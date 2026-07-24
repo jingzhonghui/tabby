@@ -12,6 +12,13 @@ profile-icon(
     [color]='tab.color ?? undefined'
 )
 
+.connection-status(
+    *ngIf='connectionState',
+    [class.connected]='connectionState == "connected"',
+    [class.disconnected]='connectionState == "disconnected"',
+    [attr.title]='connectionState'
+)
+
 .pin-indicator(*ngIf='tab.pinned')
     i.fas.fa-thumbtack
 

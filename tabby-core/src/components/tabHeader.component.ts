@@ -2,7 +2,7 @@
 import { Component, Input, Optional, Inject, HostBinding, HostListener, NgZone } from '@angular/core'
 import { auditTime } from 'rxjs'
 import { TabContextMenuItemProvider } from '../api/tabContextMenuProvider'
-import { BaseTabComponent } from './baseTab.component'
+import { BaseTabComponent, TabConnectionState } from './baseTab.component'
 import { SplitTabComponent } from './splitTab.component'
 import { HotkeysService } from '../services/hotkeys.service'
 import { AppService } from '../services/app.service'
@@ -53,6 +53,13 @@ export class TabHeaderComponent extends BaseComponent {
                 this.progress = progress
             })
         })
+    }
+
+    get connectionState (): TabConnectionState|null {
+        if (this.tab instanceof SplitTabComponent) {
+            return this.tab.getFocusedTab()?.connectionState ?? null
+        }
+        return this.tab.connectionState
     }
 
     async buildContextMenu (): Promise<MenuItemOptions[]> {

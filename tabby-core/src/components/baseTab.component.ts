@@ -12,6 +12,8 @@ export interface BaseTabProcess {
     name: string
 }
 
+export type TabConnectionState = 'connected'|'disconnected'
+
 export interface GetRecoveryTokenOptions {
     includeState: boolean
 }
@@ -86,6 +88,11 @@ export abstract class BaseTabComponent extends BaseComponent {
     }
 
     hasFocus = false
+
+    /**
+     * Optional connection state displayed by the tab header.
+     */
+    get connectionState (): TabConnectionState|null { return null }
 
     /**
      * Ping this if your recovery state has been changed and you want

@@ -6,7 +6,7 @@ import { first } from 'rxjs'
 
 import { ConnectableTerminalProfile } from './interfaces'
 import { BaseTerminalTabComponent } from './baseTerminalTab.component'
-import { GetRecoveryTokenOptions, RecoveryToken } from 'tabby-core'
+import { GetRecoveryTokenOptions, RecoveryToken, TabConnectionState } from 'tabby-core'
 
 
 /**
@@ -17,6 +17,10 @@ export abstract class ConnectableTerminalTabComponent<P extends ConnectableTermi
 
     protected reconnectOffered = false
     protected isDisconnectedByHand = false
+
+    get connectionState (): TabConnectionState {
+        return this.session?.open ? 'connected' : 'disconnected'
+    }
 
     constructor (protected injector: Injector) {
         super(injector)

@@ -48,6 +48,26 @@ $tabs-height: 38px;
         margin: 1px 4px 0 0;
     }
 
+    .connection-status {
+        width: 7px;
+        height: 7px;
+        margin: 1px 7px 0 1px;
+        border-radius: 50%;
+        flex: none;
+        align-self: center;
+        box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 18%, transparent);
+
+        &.connected {
+            color: #5ac878;
+            background: currentColor;
+        }
+
+        &.disconnected {
+            color: #d76363;
+            background: currentColor;
+        }
+    }
+
     .pin-indicator {
         display: flex;
         align-items: center;
