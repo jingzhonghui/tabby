@@ -1,8 +1,8 @@
 import { marker as _ } from '@biesbjerg/ngx-translate-extract-marker'
 import deepClone from 'clone-deep'
-import { Component, Inject } from '@angular/core'
+import { Component, Inject, Optional, TemplateRef, ViewChild } from '@angular/core'
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
-import { ConfigService, HostAppService, Profile, SelectorService, ProfilesService, PlatformService, BaseComponent, PartialProfile, ProfileProvider, TranslateService, Platform, ProfileGroup, PartialProfileGroup, QuickConnectProfileProvider } from 'tabby-core'
+import { ConfigService, HostAppService, Profile, SelectorService, ProfilesService, PlatformService, BaseComponent, PartialProfile, ProfileProvider, TranslateService, Platform, ProfileGroup, PartialProfileGroup, QuickConnectProfileProvider, ProfileTransferProvider, NotificationsService } from 'tabby-core'
 import { EditProfileModalComponent } from './editProfileModal.component'
 import { EditProfileGroupModalComponent, EditProfileGroupModalComponentResult } from './editProfileGroupModal.component'
 
@@ -26,8 +26,13 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
     customProfiles: PartialProfile<Profile>[] = []
     profileGroups: PartialProfileGroup<CollapsableProfileGroup>[]
     rootGroups: PartialProfileGroup<CollapsableProfileGroup>[] = []
+    visibleProfiles: PartialProfile<Profile>[] = []
+    selectedProfileCount = 0
+    groupProfileCounts = new Map<string, number>()
+    @ViewChild('advancedSettingsModal') advancedSettingsModal: TemplateRef<unknown>
 
     filter = ''
+    selectedGroupId = 'all'
     Platform = Platform
     private descriptionCache = new Map<string, string|null>()
 
@@ -40,6 +45,8 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
         private ngbModal: NgbModal,
         private platform: PlatformService,
         private translate: TranslateService,
+        private notifications: NotificationsService,
+        @Optional() @Inject(ProfileTransferProvider) private profileTransferProviders: ProfileTransferProvider[]|null,
     ) {
         super()
         this.profileProviders.sort((a, b) => a.name.localeCompare(b.name))
@@ -54,6 +61,7 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
 
     async refreshProfiles (): Promise<void> {
         const allProfiles = await this.profilesService.getProfiles()
+        this.profiles = allProfiles.filter(x => !x.isTemplate)
         this.builtinProfiles = allProfiles.filter(x => x.isBuiltin && !x.isTemplate)
         this.templateProfiles = allProfiles.filter(x => x.isBuiltin && x.isTemplate)
         this.customProfiles = allProfiles.filter(x => !x.isBuiltin)
@@ -64,6 +72,97 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
                 this.descriptionCache.set(p.id, this.profilesService.getDescription(p))
             }
         }
+        this.refreshProfileView()
+    }
+
+    async importProfiles (): Promise<void> {
+        const provider = await this.selectProfileTransferProvider()
+        if (!provider) {
+            return
+        }
+        const uploads = await this.platform.startUpload({ multiple: false })
+        if (!uploads.length) {
+            return
+        }
+
+        try {
+            const result = await provider.importProfiles(await uploads[0].readAll())
+            await this.refreshProfileGroups()
+            await this.refreshProfiles()
+            const chineseSummary = `已导入 ${result.imported} 项，跳过重复 ${result.skipped} 项，失败 ${result.errors.length} 项`
+            if (result.errors.length) {
+                this.notifications.error(chineseSummary, result.errors.join('\n'))
+            } else {
+                this.notifications.info(chineseSummary)
+            }
+        } catch (e) {
+            this.notifications.error('无法导入配置', this.errorMessage(e))
+        } finally {
+            uploads[0].close()
+        }
+    }
+
+    async exportProfiles (includeSecrets: boolean): Promise<void> {
+        const provider = await this.selectProfileTransferProvider()
+        if (!provider) {
+            return
+        }
+        if (includeSecrets && (await this.platform.showMessageBox({
+            type: 'warning',
+            message: '是否以明文导出密码和私钥？',
+            detail: '任何能够访问导出 CSV 文件的人都可以读取其中的敏感信息。',
+            buttons: [
+                '导出',
+                '取消',
+            ],
+            defaultId: 1,
+            cancelId: 1,
+        })).response !== 0) {
+            return
+        }
+
+        try {
+            const result = await provider.exportProfiles(includeSecrets)
+            const download = await this.platform.startDownload(result.name, includeSecrets ? 0o600 : 0o644, result.content.length)
+            if (!download) {
+                return
+            }
+            try {
+                await download.write(result.content)
+            } finally {
+                download.close()
+            }
+            const summary = `已导出 ${result.exported} 项配置`
+            if (result.warnings.length) {
+                this.notifications.info(summary, result.warnings.join('\n'))
+            } else {
+                this.notifications.info(summary)
+            }
+        } catch (e) {
+            this.notifications.error('无法导出配置', this.errorMessage(e))
+        }
+    }
+
+    openAdvancedSettings (): void {
+        this.ngbModal.open(this.advancedSettingsModal, { size: 'lg', ariaLabelledBy: 'advanced-settings-title' })
+    }
+
+    private async selectProfileTransferProvider (): Promise<ProfileTransferProvider|null> {
+        if (!this.profileTransferProviders?.length) {
+            this.notifications.error('当前没有可用的配置导入器')
+            return null
+        }
+        if (this.profileTransferProviders.length === 1) {
+            return this.profileTransferProviders[0]
+        }
+        return this.selector.show(
+            '选择配置文件格式',
+            this.profileTransferProviders.map(provider => ({ name: provider.name, result: provider })),
+        ).catch(() => null)
+    }
+
+    private errorMessage (error: unknown): string {
+        return error instanceof Error ? error.message : `${error}`
     }
 
     launchProfile (profile: PartialProfile<Profile>): void {
@@ -71,6 +170,7 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
     }
 
     async newProfile (base?: PartialProfile<Profile>): Promise<void> {
+        const useSelectedGroup = !base
         if (!base) {
             let profiles = await this.profilesService.getProfiles()
             profiles = profiles.filter(x => !this.isProfileBlacklisted(x))
@@ -98,6 +198,14 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
         }
         baseProfile.isBuiltin = false
         baseProfile.isTemplate = false
+        if (useSelectedGroup) {
+            const selectedGroup = this.getSelectedGroup()
+            if (selectedGroup?.editable) {
+                baseProfile.group = selectedGroup.id
+            } else {
+                delete baseProfile.group
+            }
+        }
         const result = await this.showProfileEditModal(baseProfile)
         if (!result) {
             return
@@ -254,6 +362,9 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
             }
 
             await this.profilesService.deleteProfileGroup(group, { deleteProfiles })
+            if (this.selectedGroupId === group.id || this.getDescendantGroupIds(group).has(this.selectedGroupId)) {
+                this.selectedGroupId = 'all'
+            }
             await this.config.save()
         }
     }
@@ -266,14 +377,83 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
         groups.sort((a, b) => (a.id === 'ungrouped' ? 0 : 1) - (b.id === 'ungrouped' ? 0 : 1))
         this.profileGroups = groups.map(g => ProfilesSettingsTabComponent.intoPartialCollapsableProfileGroup(g, profileGroupCollapsed[g.id] ?? false))
         this.rootGroups = this.profilesService.buildGroupTree(this.profileGroups)
+        if (this.selectedGroupId !== 'all' && !this.profileGroups.some(group => group.id === this.selectedGroupId)) {
+            this.selectedGroupId = 'all'
+        }
+        this.refreshProfileView()
     }
 
-    isGroupVisible (group: PartialProfileGroup<ProfileGroup>): boolean {
-        return !this.filter || (group.profiles ?? []).some(x => this.isProfileVisible(x))
+    selectGroup (groupId: string): void {
+        this.selectedGroupId = groupId
+        this.filter = ''
+        this.refreshProfileView()
     }
 
-    isProfileVisible (profile: PartialProfile<Profile>): boolean {
-        return !this.filter || (profile.name + '$' + (this.getDescription(profile) ?? '')).toLowerCase().includes(this.filter.toLowerCase())
+    onFilterChange (): void {
+        this.refreshProfileView()
+    }
+
+    private refreshProfileView (): void {
+        this.groupProfileCounts.clear()
+        for (const group of this.profileGroups) {
+            this.groupProfileCounts.set(group.id, this.getProfilesInGroup(group).length)
+        }
+
+        let profiles = this.profiles
+        if (this.selectedGroupId !== 'all') {
+            const group = this.getSelectedGroup()
+            profiles = group ? this.getProfilesInGroup(group) : []
+        }
+        this.selectedProfileCount = profiles.length
+
+        const filter = this.filter.trim().toLowerCase()
+        if (filter) {
+            profiles = profiles.filter(profile => [
+                profile.name,
+                this.getDescription(profile),
+                this.getProfileGroupPath(profile),
+                this.getTypeLabel(profile),
+            ].filter(Boolean).join('$').toLowerCase().includes(filter))
+        }
+        this.visibleProfiles = profiles
+    }
+
+    getSelectedGroupName (): string {
+        if (this.selectedGroupId === 'all') {
+            return '全部主机'
+        }
+        const group = this.getSelectedGroup()
+        return group ? this.getGroupName(group) : '未分组'
+    }
+
+    getGroupName (group: PartialProfileGroup<CollapsableProfileGroup>): string {
+        if (group.id === 'ungrouped') {
+            return '未分组'
+        }
+        if (group.id === 'built-in') {
+            return '内置配置'
+        }
+        return group.name || '未分组'
+    }
+
+    getGroupProfileCount (group: PartialProfileGroup<CollapsableProfileGroup>): number {
+        return this.groupProfileCounts.get(group.id) ?? 0
+    }
+
+    getGroupToggleLabel (group: PartialProfileGroup<CollapsableProfileGroup>): string {
+        const action = group.collapsed ? '展开' : '折叠'
+        return `${action}${this.getGroupName(group)}`
+    }
+
+    canCreateProfileInSelectedGroup (): boolean {
+        return this.selectedGroupId === 'all' || this.selectedGroupId === 'ungrouped' || !!this.getSelectedGroup()?.editable
+    }
+
+    getProfileGroupPath (profile: PartialProfile<Profile>): string {
+        if (!profile.group) {
+            return '未分组'
+        }
+        return this.profilesService.resolveProfileGroupPath(profile.group).join(' / ')
     }
 
     getDescription (profile: PartialProfile<Profile>): string|null {
@@ -284,11 +464,22 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
     }
 
     getTypeLabel (profile: PartialProfile<Profile>): string {
-        const name = this.profilesService.providerForProfile(profile)?.name
-        if (name === 'Local terminal') {
-            return ''
-        }
-        return name ? this.translate.instant(name) : this.translate.instant('Unknown')
+        return {
+            ssh: 'SSH',
+            serial: '串口',
+            telnet: 'Telnet',
+            'split-layout': '拆分布局',
+        }[profile.type] ?? (profile.type === 'local' ? '' : '未知')
+    }
+
+    getProviderName (provider: ProfileProvider<Profile>): string {
+        return {
+            ssh: 'SSH',
+            serial: '串口',
+            telnet: 'Telnet',
+            local: '本地终端',
+            'split-layout': '拆分布局',
+        }[provider.id] ?? provider.name
     }
 
     getTypeColorClass (profile: PartialProfile<Profile>): string {
@@ -303,6 +494,37 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
     toggleGroupCollapse (group: PartialProfileGroup<CollapsableProfileGroup>): void {
         group.collapsed = !group.collapsed
         this.saveProfileGroupCollapse(group)
+    }
+
+    private getSelectedGroup (): PartialProfileGroup<CollapsableProfileGroup>|null {
+        return this.profileGroups.find(group => group.id === this.selectedGroupId) ?? null
+    }
+
+    private getProfilesInGroup (group: PartialProfileGroup<CollapsableProfileGroup>): PartialProfile<Profile>[] {
+        const profileIds = new Set<string>()
+        const collect = (current: PartialProfileGroup<CollapsableProfileGroup>): void => {
+            for (const profile of current.profiles ?? []) {
+                if (!profile.isTemplate) {
+                    profileIds.add(profile.id ?? `${profile.type}:${profile.name}`)
+                }
+            }
+            for (const child of current.children ?? []) {
+                collect(child)
+            }
+        }
+        collect(group)
+        return this.profiles.filter(profile => profileIds.has(profile.id ?? `${profile.type}:${profile.name}`))
+    }
+
+    private getDescendantGroupIds (group: PartialProfileGroup<CollapsableProfileGroup>): Set<string> {
+        const result = new Set<string>()
+        for (const child of group.children ?? []) {
+            result.add(child.id)
+            for (const id of this.getDescendantGroupIds(child)) {
+                result.add(id)
+            }
+        }
+        return result
     }
 
     async editDefaults (provider: ProfileProvider<Profile>): Promise<void> {

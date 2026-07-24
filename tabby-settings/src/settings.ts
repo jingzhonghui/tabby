@@ -55,7 +55,7 @@ export class VaultSettingsTabProvider extends SettingsTabProvider {
 export class ProfilesSettingsTabProvider extends SettingsTabProvider {
     id = 'profiles'
     icon = 'window-restore'
-    title = this.translate.instant('Profiles & connections')
+    title = this.translate.instant('配置与连接')
     prioritized = true
 
     constructor (private translate: TranslateService) { super() }

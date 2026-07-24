@@ -14,7 +14,7 @@ export class PasswordStorageService {
         const account = username ?? profile.options.user
         if (this.vault.isEnabled()) {
             const key = this.getVaultKeyForConnection(profile, account)
-            this.vault.addSecret({ type: VAULT_SECRET_TYPE_PASSWORD, key, value: password })
+            await this.vault.addSecret({ type: VAULT_SECRET_TYPE_PASSWORD, key, value: password })
         } else {
             if (!account) {
                 return
@@ -28,7 +28,7 @@ export class PasswordStorageService {
         const account = username ?? profile.options.user
         if (this.vault.isEnabled()) {
             const key = this.getVaultKeyForConnection(profile, account)
-            this.vault.removeSecret(VAULT_SECRET_TYPE_PASSWORD, key)
+            await this.vault.removeSecret(VAULT_SECRET_TYPE_PASSWORD, key)
         } else {
             if (!account) {
                 return
@@ -60,7 +60,7 @@ export class PasswordStorageService {
     async savePrivateKeyPassword (id: string, password: string): Promise<void> {
         if (this.vault.isEnabled()) {
             const key = this.getVaultKeyForPrivateKey(id)
-            this.vault.addSecret({ type: VAULT_SECRET_TYPE_PASSPHRASE, key, value: password })
+            await this.vault.addSecret({ type: VAULT_SECRET_TYPE_PASSPHRASE, key, value: password })
         } else {
             const key = this.getKeytarKeyForPrivateKey(id)
             return keytar.setPassword(key, 'user', password)
@@ -70,7 +70,7 @@ export class PasswordStorageService {
     async deletePrivateKeyPassword (id: string): Promise<void> {
         if (this.vault.isEnabled()) {
             const key = this.getVaultKeyForPrivateKey(id)
-            this.vault.removeSecret(VAULT_SECRET_TYPE_PASSPHRASE, key)
+            await this.vault.removeSecret(VAULT_SECRET_TYPE_PASSPHRASE, key)
         } else {
             const key = this.getKeytarKeyForPrivateKey(id)
             await keytar.deletePassword(key, 'user')

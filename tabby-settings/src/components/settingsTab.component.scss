@@ -56,6 +56,17 @@
                     display: block;
                 }
             }
+
+            &:has(settings-tab-body.full-width) {
+                padding: 0;
+                overflow: hidden;
+
+                > ::ng-deep .tab-pane {
+                    height: 100%;
+                    padding: 0;
+                    overflow: hidden;
+                }
+            }
         }
     }
 
