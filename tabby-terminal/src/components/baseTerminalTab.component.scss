@@ -52,10 +52,6 @@
         background: #00000047;
     }
 
-    &.toolbar-pinned > .terminal-toolbar-spacer {
-        width: 100%;
-        height: $toolbarHeight;
-    }
 }
 
 :host-context(.with-title-inset) {

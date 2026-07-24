@@ -3,6 +3,13 @@
     display: flex;
     z-index: 3;
     overflow: hidden;
+    pointer-events: none;
+
+    ::ng-deep .btn,
+    ::ng-deep [ngbDropdown],
+    .drag-handle {
+        pointer-events: auto;
+    }
 
     ::ng-deep .btn {
         white-space: nowrap;
