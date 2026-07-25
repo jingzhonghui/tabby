@@ -24,6 +24,10 @@ terminal-toolbar([tab]='this')
         i.far.fa-folder-open
         span SFTP
 
+    button.btn.btn-sm.btn-link.me-2((click)='openMonitor()', *ngIf='session && session.open')
+        i.fas.fa-chart-line
+        span 监控
+
     button.btn.btn-sm.btn-link(
         *ngIf='session && session.open && hostApp.platform !== Platform.Web',
         (click)='showPortForwarding()'
@@ -41,6 +45,15 @@ sftp-panel.bg-dark(
     [session]='sshSession!',
     [cwdDetectionAvailable]='session?.supportsWorkingDirectory() ?? false',
     (closed)='sftpPanelVisible = false'
+)
+
+server-monitor-panel.bg-dark(
+    @panelSlide,
+    [@.disabled]='!config.store.accessibility.animations',
+    *ngIf='monitorPanelVisible && sshSession',
+    (click)='$event.stopPropagation()',
+    [session]='sshSession!',
+    (closed)='monitorPanelVisible = false'
 )
 
 keyboard-interactive-auth-panel.bg-dark(

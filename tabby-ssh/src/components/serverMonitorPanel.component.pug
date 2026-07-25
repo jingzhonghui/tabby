@@ -1,0 +1,103 @@
+.header
+    .title
+        i.fas.fa-server.me-2
+        strong 服务器监控
+    .ms-auto
+    button.btn.btn-link.text-decoration-none((click)='close()') !{require('../../../tabby-core/src/icons/times.svg')}
+
+.body
+    div(*ngIf='loading') 正在加载服务器状态...
+
+    .alert.alert-danger(*ngIf='error')
+        i.fas.fa-exclamation-triangle.me-2
+        | {{error}}
+
+    .stats-container(*ngIf='stats && !loading')
+        // 第一行：系统信息 + CPU + 内存
+        .stats-row
+            // 系统信息
+            .stat-card
+                .stat-header
+                    i.fas.fa-info-circle.me-2
+                    span 系统信息
+                .stat-content
+                    .info-row
+                        i.fas.fa-clock.me-2.text-info
+                        span 运行时间:
+                        strong {{stats.uptime}}
+                    .info-row
+                        i.fas.fa-tachometer-alt.me-2.text-info
+                        span 负载:
+                        strong {{stats.loadAverage.join(' ')}}
+
+            // CPU
+            .stat-card
+                .stat-header
+                    i.fas.fa-microchip.me-2
+                    span CPU ({{stats.cpu.cores}} 核)
+                    .stat-value {{stats.cpu.usagePercent}}%
+                .progress
+                    .progress-bar(
+                        [class]='getProgressBarClass(stats.cpu.usagePercent)',
+                        [style.width.%]='stats.cpu.usagePercent'
+                    )
+
+            // 内存
+            .stat-card
+                .stat-header
+                    i.fas.fa-memory.me-2
+                    span 内存
+                    .stat-value {{stats.memory.usagePercent}}%
+                .progress
+                    .progress-bar(
+                        [class]='getProgressBarClass(stats.memory.usagePercent)',
+                        [style.width.%]='stats.memory.usagePercent'
+                    )
+                .stat-detail
+                    span 已用: {{formatBytes(stats.memory.used)}}
+                    span 总共: {{formatBytes(stats.memory.total)}}
+                    span 可用: {{formatBytes(stats.memory.available)}}
+
+        // 第二行：磁盘 + 网络
+        .stats-row
+            // 磁盘
+            .stat-card.wide
+                .stat-header
+                    i.fas.fa-hdd.me-2
+                    span 磁盘
+                .disk-list
+                    .disk-item(*ngFor='let disk of stats.disks')
+                        .disk-info
+                            span.disk-mount {{disk.mountedOn}}
+                            span.disk-fs {{disk.filesystem}}
+                        .disk-bar
+                            .progress
+                                .progress-bar(
+                                    [class]='getProgressBarClass(disk.usagePercent)',
+                                    [style.width.%]='disk.usagePercent'
+                                )
+                        .disk-stats
+                            span {{disk.usagePercent}}%
+                            span {{formatBytes(disk.used)}} / {{formatBytes(disk.size)}}
+
+            // 网络
+            .stat-card.wide
+                .stat-header
+                    i.fas.fa-network-wired.me-2
+                    span 网络
+                .network-list
+                    .network-item(*ngFor='let net of stats.network')
+                        .network-name
+                            i.fas.fa-ethernet.me-2
+                            | {{net.name}}
+                        .network-stats
+                            .network-stat
+                                i.fas.fa-arrow-down.text-success.me-1
+                                span {{formatBytesPerSecond(net.rxSpeed)}}
+                            .network-stat
+                                i.fas.fa-arrow-up.text-info.me-1
+                                span {{formatBytesPerSecond(net.txSpeed)}}
+                        .network-errors(*ngIf='net.rxErrors > 0 || net.txErrors > 0')
+                            small.text-warning
+                                i.fas.fa-exclamation-circle.me-1
+                                | RX 错误: {{net.rxErrors}}, TX 错误: {{net.txErrors}}

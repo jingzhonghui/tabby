@@ -1,0 +1,235 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    background: var(--theme-bg-more);
+    color: var(--theme-fg);
+    height: 320px;
+    min-height: 280px;
+    max-height: 450px;
+    border-top: 1px solid var(--theme-bg-less-2);
+
+    > .header {
+        padding: 8px 15px;
+        display: flex;
+        align-items: center;
+        flex: none;
+        border-bottom: 1px solid var(--theme-bg-less-2);
+
+        .title {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+        }
+    }
+
+    > .body {
+        flex: 1 1 0;
+        overflow-y: auto;
+        padding: 12px 15px;
+    }
+}
+
+.stats-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.stats-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+
+    .stat-card {
+        flex: 1 1 0;
+        min-width: 200px;
+        padding: 10px 12px;
+        background: var(--theme-bg-less);
+        border-radius: 6px;
+
+        &.wide {
+            flex: 1 1 45%;
+            min-width: 280px;
+        }
+    }
+}
+
+.stat-card {
+    .stat-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+        font-size: 13px;
+        font-weight: 600;
+
+        .stat-value {
+            margin-left: auto;
+            font-weight: 500;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+    }
+
+    .stat-content {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .progress {
+        height: 8px;
+        background: var(--theme-bg-more);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 6px;
+
+        .progress-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+
+            &.bg-success {
+                background: #28a745;
+            }
+
+            &.bg-warning {
+                background: #ffc107;
+            }
+
+            &.bg-danger {
+                background: #dc3545;
+            }
+        }
+    }
+}
+
+.info-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+
+    strong {
+        color: var(--theme-fg-more);
+    }
+}
+
+.stat-detail {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    opacity: 0.7;
+    margin-top: 4px;
+}
+
+.disk-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.disk-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 8px;
+    background: var(--theme-bg-more);
+    border-radius: 4px;
+
+    .disk-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11px;
+
+        .disk-mount {
+            font-weight: 600;
+        }
+
+        .disk-fs {
+            opacity: 0.6;
+            font-size: 10px;
+        }
+    }
+
+    .disk-bar {
+        .progress {
+            height: 5px;
+            background: var(--theme-bg-less-2);
+            border-radius: 3px;
+            overflow: hidden;
+
+            .progress-bar {
+                height: 100%;
+                border-radius: 3px;
+                transition: width 0.3s ease;
+
+                &.bg-success {
+                    background: #28a745;
+                }
+
+                &.bg-warning {
+                    background: #ffc107;
+                }
+
+                &.bg-danger {
+                    background: #dc3545;
+                }
+            }
+        }
+    }
+
+    .disk-stats {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        opacity: 0.7;
+    }
+}
+
+.network-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.network-item {
+    padding: 6px 8px;
+    background: var(--theme-bg-more);
+    border-radius: 4px;
+
+    .network-name {
+        font-size: 11px;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+
+    .network-stats {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .network-stat {
+        display: flex;
+        align-items: center;
+        font-size: 11px;
+        gap: 4px;
+
+        small {
+            opacity: 0.6;
+            font-size: 10px;
+        }
+    }
+
+    .network-errors {
+        margin-top: 3px;
+        font-size: 10px;
+    }
+}
+
+.btn-link svg {
+    width: 12px;
+}

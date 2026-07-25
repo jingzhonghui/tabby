@@ -17,6 +17,10 @@ export class SSHHotkeyProvider extends HotkeyProvider {
             id: 'open-sftp',
             name: this.translate.instant('Open SFTP panel'),
         },
+        {
+            id: 'open-monitor',
+            name: this.translate.instant('打开服务器监控面板'),
+        },
     ]
 
     constructor (private translate: TranslateService) { super() }

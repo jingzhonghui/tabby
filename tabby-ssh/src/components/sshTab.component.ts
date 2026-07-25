@@ -27,6 +27,7 @@ export class SSHTabComponent extends ConnectableTerminalTabComponent<SSHProfile>
     sshSession: SSHSession|null = null
     session: SSHShellSession|null = null
     sftpPanelVisible = false
+    monitorPanelVisible = false
     sftpPath = '/'
     enableToolbar = true
     activeKIPrompt: KeyboardInteractivePrompt|null = null
@@ -66,6 +67,9 @@ export class SSHTabComponent extends ConnectableTerminalTabComponent<SSHProfile>
                     break
                 case 'open-sftp':
                     this.openSFTP()
+                    break
+                case 'open-monitor':
+                    this.openMonitor()
                     break
             }
         })
@@ -222,9 +226,16 @@ export class SSHTabComponent extends ConnectableTerminalTabComponent<SSHProfile>
         }, 100)
     }
 
+    async openMonitor (): Promise<void> {
+        setTimeout(() => {
+            this.monitorPanelVisible = true
+        }, 100)
+    }
+
     @HostListener('click')
     onClick (): void {
         this.sftpPanelVisible = false
+        this.monitorPanelVisible = false
     }
 
     protected isSessionExplicitlyTerminated (): boolean {
