@@ -22,6 +22,7 @@ import { ToggleComponent } from './components/toggle.component'
 import { WindowControlsComponent } from './components/windowControls.component'
 import { RenameTabModalComponent } from './components/renameTabModal.component'
 import { SelectorModalComponent } from './components/selectorModal.component'
+import { ProfileSelectorModalComponent } from './components/profileSelectorModal.component'
 import { SplitTabComponent, SplitTabRecoveryProvider } from './components/splitTab.component'
 import { SplitTabSpannerComponent } from './components/splitTabSpanner.component'
 import { SplitTabDropZoneComponent } from './components/splitTabDropZone.component'
@@ -121,6 +122,7 @@ const PROVIDERS = [
         FastHtmlBindDirective,
         AlwaysVisibleTypeaheadDirective,
         SelectorModalComponent,
+        ProfileSelectorModalComponent,
         SplitTabComponent,
         SplitTabSpannerComponent,
         SplitTabDropZoneComponent,

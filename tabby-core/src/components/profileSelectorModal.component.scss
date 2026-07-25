@@ -1,0 +1,338 @@
+:host {
+    display: contents;
+}
+
+.profile-selector-modal {
+    height: min(68vh, 46rem);
+    min-height: 28rem;
+    padding: 0;
+    overflow: hidden;
+}
+
+.profile-selector-workspace {
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    grid-template-columns: minmax(13rem, 15rem) minmax(0, 1fr);
+}
+
+.group-sidebar {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    padding: .8rem .65rem;
+    border-right: 1px solid var(--theme-bg-less-2);
+    background: var(--theme-bg-less);
+}
+
+.group-sidebar-header {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    padding: 0 .55rem .55rem;
+}
+
+.group-sidebar-title {
+    color: var(--theme-fg-more);
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.group-tree {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+}
+
+.group-item-wrap {
+    display: flex;
+    align-items: center;
+    padding-left: calc(var(--group-depth) * .85rem);
+}
+
+.group-item {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    height: 2.4rem;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: .55rem;
+    padding: 0 .55rem;
+    overflow: hidden;
+    border: 0;
+    border-radius: .4rem;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+
+    &::before {
+        position: absolute;
+        top: .45rem;
+        bottom: .45rem;
+        left: 0;
+        width: 3px;
+        border-radius: 2px;
+        background: transparent;
+        content: '';
+    }
+
+    &:hover {
+        background: var(--theme-bg-less-2);
+    }
+
+    &.active {
+        background: var(--theme-secondary);
+        color: var(--theme-secondary-fg);
+
+        &::before {
+            background: var(--theme-primary);
+        }
+    }
+}
+
+.group-item-all {
+    width: 100%;
+    flex: 0 0 auto;
+    margin-bottom: .25rem;
+}
+
+.group-expander,
+.group-expander-placeholder {
+    width: 1.25rem;
+    height: 2.4rem;
+    flex: 0 0 1.25rem;
+}
+
+.group-expander {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--theme-fg-more);
+    font-size: .6rem;
+}
+
+.group-icon {
+    display: flex;
+    width: 1rem;
+    flex: 0 0 1rem;
+    align-items: center;
+    justify-content: center;
+    color: var(--theme-fg-more);
+}
+
+.group-name {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.group-count {
+    min-width: 1.4rem;
+    flex: 0 0 auto;
+    color: var(--theme-fg-more);
+    font-size: .72rem;
+    text-align: right;
+}
+
+.profile-panel {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    padding: 1rem;
+    overflow: hidden;
+}
+
+.profile-panel-heading {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: .75rem 1rem;
+    padding-bottom: .9rem;
+    border-bottom: 1px solid var(--theme-bg-less-2);
+}
+
+.profile-panel-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.profile-panel-subtitle {
+    margin-top: .15rem;
+    color: var(--theme-fg-more);
+    font-size: .75rem;
+}
+
+.profile-search {
+    min-width: 14rem;
+    flex: 1 1 20rem;
+    margin-left: auto;
+}
+
+.clear-recent {
+    flex: 0 0 auto;
+}
+
+.profile-list {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: .35rem;
+    padding: .75rem .2rem .2rem 0;
+    overflow-y: auto;
+}
+
+.profile-row {
+    display: grid;
+    min-height: 3.8rem;
+    grid-template-columns: minmax(12rem, 1fr) minmax(7rem, .55fr) auto auto;
+    align-items: center;
+    gap: .8rem;
+    padding: .55rem .7rem;
+    border: 1px solid transparent;
+    border-radius: .45rem;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+
+    &:hover,
+    &:focus-visible {
+        border-color: var(--theme-bg-less-2);
+        background: var(--theme-bg-less);
+    }
+}
+
+.profile-main {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: .75rem;
+}
+
+.profile-icon {
+    flex: 0 0 auto;
+}
+
+.profile-copy,
+.profile-name,
+.profile-description,
+.profile-group-path {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profile-name {
+    font-weight: 600;
+}
+
+.profile-description,
+.profile-group-path {
+    color: var(--theme-fg-more);
+    font-size: .78rem;
+}
+
+.profile-type {
+    padding: .2rem .45rem;
+    border-radius: .35rem;
+    background: var(--theme-bg-less-2);
+    color: var(--theme-fg-more);
+    font-size: .72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.profile-open-icon {
+    color: var(--theme-fg-more);
+    font-size: .7rem;
+}
+
+.profile-empty {
+    display: flex;
+    min-height: 12rem;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--theme-fg-more);
+    text-align: center;
+}
+
+.profile-empty-icon {
+    margin-bottom: .8rem;
+    font-size: 2rem;
+    opacity: .55;
+}
+
+.profile-selector-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem 1rem;
+}
+
+.quick-connect {
+    display: flex;
+    min-width: min(100%, 28rem);
+    flex: 1 1 32rem;
+    gap: .5rem;
+}
+
+.quick-provider {
+    width: 8rem;
+    flex: 0 0 8rem;
+}
+
+.quick-connect-input {
+    min-width: 12rem;
+    flex: 1 1 auto;
+}
+
+.footer-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: .5rem;
+}
+
+@media (max-width: 760px) {
+    .profile-selector-modal {
+        height: min(72vh, 44rem);
+        min-height: 32rem;
+    }
+
+    .profile-selector-workspace {
+        grid-template-rows: minmax(10rem, 35%) minmax(0, 1fr);
+        grid-template-columns: 1fr;
+    }
+
+    .group-sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--theme-bg-less-2);
+    }
+
+    .profile-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .profile-group-path {
+        display: none;
+    }
+
+    .quick-connect,
+    .footer-actions {
+        width: 100%;
+    }
+
+    .footer-actions {
+        justify-content: flex-end;
+    }
+}

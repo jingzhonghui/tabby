@@ -2,7 +2,8 @@ import { Injectable, Inject } from '@angular/core'
 import { TranslateService } from '@ngx-translate/core'
 import { NewTabParameters } from './tabs.service'
 import { BaseTabComponent } from '../components/baseTab.component'
-import { QuickConnectProfileProvider, PartialProfile, PartialProfileGroup, Profile, ProfileGroup, ProfileProvider } from '../api/profileProvider'
+import { ConnectableProfile, QuickConnectProfileProvider, PartialProfile, PartialProfileGroup, Profile, ProfileGroup, ProfileProvider } from '../api/profileProvider'
+import type { ProfileSelectorEntry, ProfileSelectorModalData } from '../components/profileSelectorModal.component'
 import { SelectorOption } from '../api/selector'
 import { AppService } from './app.service'
 import { configMerge, ConfigProxy, ConfigService, FullyDefined } from './config.service'
@@ -247,101 +248,96 @@ export class ProfilesService {
         return roots
     }
 
-    showProfileSelector (): Promise<PartialProfile<Profile> | null> {
+    async showProfileSelector (): Promise<PartialProfile<Profile>|null> {
         if (this.selector.active) {
-            return Promise.resolve(null)
+            return null
         }
 
-        return new Promise<PartialProfile<Profile>|null>(async (resolve, reject) => {
-            try {
-                const recentProfiles = this.getRecentProfiles()
-
-                let options: SelectorOption<void>[] = recentProfiles.map((p, i) => ({
-                    ...this.selectorOptionForProfile(p),
-                    group: this.translate.instant('Recent'),
-                    icon: 'fas fa-history',
-                    color: p.color ?? undefined,
-                    weight: i - (recentProfiles.length + 1),
-                    callback: async () => {
-                        if (p.id) {
-                            p = (await this.getProfiles()).find(x => x.id === p.id) ?? p
-                        }
-                        resolve(p)
-                    },
-                }))
-                if (recentProfiles.length) {
-                    options.push({
-                        name: this.translate.instant('Clear recent profiles'),
-                        group: this.translate.instant('Recent'),
-                        icon: 'fas fa-eraser',
-                        weight: -1,
-                        callback: async () => {
-                            window.localStorage.removeItem('recentProfiles')
-                            this.config.save()
-                            resolve(null)
-                        },
-                    })
+        let profiles = await this.getProfiles({
+            includeBuiltin: this.config.store.terminal.showBuiltinProfiles,
+            clone: true,
+        })
+        profiles = profiles
+            .filter(profile => !profile.isTemplate)
+            .filter(profile => profile.id && !this.config.store.profileBlacklist.includes(profile.id))
+            .map(profile => {
+                if (profile.isBuiltin && !profile.icon) {
+                    profile.icon = 'fas fa-network-wired'
                 }
+                return profile
+            })
 
-                let profiles = await this.getProfiles()
+        const profileKey = (profile: PartialProfile<Profile>): string => profile.id ?? `${profile.type}:${profile.name}`
+        const visibleProfileKeys = new Set(profiles.map(profileKey))
 
-                if (!this.config.store.terminal.showBuiltinProfiles) {
-                    profiles = profiles.filter(x => !x.isBuiltin)
-                } else {
-                    profiles = profiles.map(p => {
-                        if (p.isBuiltin) { p.group = 'Built-in' }
-                        if (!p.icon) { p.icon = 'fas fa-network-wired' }
-                        return p
-                    })
-                }
+        let groups = await this.getProfileGroups({
+            includeNonUserGroup: true,
+            includeProfiles: true,
+        })
+        groups = groups.map(group => ({
+            ...group,
+            profiles: (group.profiles ?? []).filter(profile => visibleProfileKeys.has(profileKey(profile))),
+        }))
+        if (!this.config.store.terminal.showBuiltinProfiles) {
+            groups = groups.filter(group => group.id === 'ungrouped' || group.editable === true || Boolean(group.profiles?.length))
+        }
 
-                profiles = profiles.filter(x => !x.isTemplate)
+        const createEntry = (profile: PartialProfile<Profile>): ProfileSelectorEntry => {
+            const key = profileKey(profile)
+            const provider = this.providerForProfile(profile)
+            let groupPath = this.translate.instant('Ungrouped')
 
-                profiles = profiles.filter(x => x.id && !this.config.store.profileBlacklist.includes(x.id))
+            if (profile.isBuiltin) {
+                const builtInName = this.translate.instant('Built-in')
+                const builtInGroup = groups.find(group => group.profiles?.some(item => profileKey(item) === key))
+                groupPath = builtInGroup && builtInGroup.id !== 'built-in'
+                    ? `${builtInName} / ${builtInGroup.name}`
+                    : builtInName
+            } else if (profile.group) {
+                groupPath = this.resolveProfileGroupPath(profile.group).join(' / ')
+            }
 
-                options = [...options, ...profiles.map((p): SelectorOption<void> => ({
-                    ...this.selectorOptionForProfile(p),
-                    weight: p.isBuiltin ? 2 : 1,
-                    callback: () => resolve(p),
-                }))]
+            return {
+                key,
+                profile,
+                description: this.getDescription(profile),
+                groupPath,
+                typeLabel: provider?.name ?? profile.type.toUpperCase(),
+            }
+        }
 
+        const entries = profiles.map(createEntry)
+        const profilesById = new Map(profiles.filter(profile => profile.id).map(profile => [profile.id!, profile]))
+        const recentEntries = this.getRecentProfiles().map(recentProfile => {
+            const currentProfile = recentProfile.id ? profilesById.get(recentProfile.id) : null
+            return createEntry(currentProfile ?? recentProfile)
+        })
+        const quickConnectProviders = this.getProviders().filter(
+            (provider): provider is QuickConnectProfileProvider<ConnectableProfile> => provider instanceof QuickConnectProfileProvider,
+        )
+
+        const data: ProfileSelectorModalData = {
+            entries,
+            recentEntries,
+            groups,
+            quickConnectProviders,
+            defaultQuickConnectProvider: this.config.store.defaultQuickConnectProvider,
+            manageProfiles: () => {
                 try {
                     const { SettingsTabComponent } = window['nodeRequire']('tabby-settings')
-                    options.push({
-                        name: this.translate.instant('Manage profiles'),
-                        icon: 'fas fa-window-restore',
-                        weight: 10,
-                        callback: () => {
-                            this.app.openNewTabRaw({
-                                type: SettingsTabComponent,
-                                inputs: { activeTab: 'profiles' },
-                            })
-                            resolve(null)
-                        },
+                    this.app.openNewTabRaw({
+                        type: SettingsTabComponent,
+                        inputs: { activeTab: 'profiles' },
                     })
                 } catch { }
+            },
+            clearRecentProfiles: () => {
+                window.localStorage.removeItem('recentProfiles')
+                this.config.save()
+            },
+        }
 
-                this.getProviders().forEach(provider => {
-                    if (provider instanceof QuickConnectProfileProvider) {
-                        options.push({
-                            name: this.translate.instant('Quick connect'),
-                            freeInputPattern: this.translate.instant('Connect to "%s"...'),
-                            description: `(${provider.name.toUpperCase()})`,
-                            icon: 'fas fa-arrow-right',
-                            weight: provider.id !== this.config.store.defaultQuickConnectProvider ? 1 : 0,
-                            callback: query => {
-                                const profile = provider.quickConnect(query)
-                                resolve(profile)
-                            },
-                        })
-                    }
-                })
-
-                await this.selector.show(this.translate.instant('Select profile or enter an address'), options).catch(() => reject())
-            } catch (err) {
-                reject(err)
-            }
-        })
+        return this.selector.showProfileSelector(data)
     }
 
     getRecentProfiles (): PartialProfile<Profile>[] {

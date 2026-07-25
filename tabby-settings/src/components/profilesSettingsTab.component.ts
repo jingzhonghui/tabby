@@ -1,5 +1,6 @@
 import { marker as _ } from '@biesbjerg/ngx-translate-extract-marker'
 import deepClone from 'clone-deep'
+import slugify from 'slugify'
 import { Component, Inject, Optional, TemplateRef, ViewChild } from '@angular/core'
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
 import { ConfigService, HostAppService, Profile, SelectorService, ProfilesService, PlatformService, BaseComponent, PartialProfile, ProfileProvider, TranslateService, Platform, ProfileGroup, PartialProfileGroup, QuickConnectProfileProvider, ProfileTransferProvider, NotificationsService } from 'tabby-core'
@@ -30,11 +31,16 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
     selectedProfileCount = 0
     groupProfileCounts = new Map<string, number>()
     @ViewChild('advancedSettingsModal') advancedSettingsModal: TemplateRef<unknown>
+    @ViewChild('deleteGroupConfirmModal') deleteGroupConfirmModal: TemplateRef<unknown>
+
+    deleteGroupConfirmTitle = ''
+    deleteGroupConfirmMessage = ''
 
     filter = ''
     selectedGroupId = 'all'
     Platform = Platform
     private descriptionCache = new Map<string, string|null>()
+    private hiddenProfileGroupIds = new Set<string>(JSON.parse(window.localStorage.hiddenProfileGroupIds ?? '[]'))
 
     constructor (
         public config: ConfigService,
@@ -60,7 +66,7 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
     }
 
     async refreshProfiles (): Promise<void> {
-        const allProfiles = await this.profilesService.getProfiles()
+        const allProfiles = (await this.profilesService.getProfiles()).map(profile => this.detachProfileFromHiddenGroup(profile))
         this.profiles = allProfiles.filter(x => !x.isTemplate)
         this.builtinProfiles = allProfiles.filter(x => x.isBuiltin && !x.isTemplate)
         this.templateProfiles = allProfiles.filter(x => x.isBuiltin && x.isTemplate)
@@ -332,46 +338,88 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
         return this.showProfileGroupEditModal(group)
     }
 
-    async deleteProfileGroup (group: PartialProfileGroup<ProfileGroup>): Promise<void> {
-        if ((await this.platform.showMessageBox(
-            {
-                type: 'warning',
-                message: this.translate.instant('Delete "{name}"?', group),
-                buttons: [
-                    this.translate.instant('Delete'),
-                    this.translate.instant('Keep'),
-                ],
-                defaultId: 1,
-                cancelId: 1,
-            },
-        )).response === 0) {
-            let deleteProfiles = false
-            if ((group.profiles?.length ?? 0) > 0 && (await this.platform.showMessageBox(
-                {
-                    type: 'warning',
-                    message: this.translate.instant('Delete the group\'s profiles?'),
-                    buttons: [
-                        this.translate.instant('Move to "Ungrouped"'),
-                        this.translate.instant('Delete'),
-                    ],
-                    defaultId: 0,
-                    cancelId: 0,
-                },
-            )).response !== 0) {
-                deleteProfiles = true
-            }
+    canDeleteProfileGroup (group: PartialProfileGroup<ProfileGroup>): boolean {
+        return group.id !== 'built-in'
+    }
 
-            await this.profilesService.deleteProfileGroup(group, { deleteProfiles })
-            if (this.selectedGroupId === group.id || this.getDescendantGroupIds(group).has(this.selectedGroupId)) {
-                this.selectedGroupId = 'all'
-            }
-            await this.config.save()
+    async deleteProfileGroup (group: PartialProfileGroup<ProfileGroup>): Promise<void> {
+        if (!this.canDeleteProfileGroup(group)) {
+            return
         }
+
+        const groupName = group.id === 'ungrouped' ? '未分组' : group.name
+        if (!await this.confirmProfileGroupDeletion(
+            '删除分组',
+            `确定要删除分组“${groupName}”吗？`,
+        )) {
+            return
+        }
+
+        const profileCount = group.profiles?.length ?? 0
+        if (profileCount > 0) {
+            const message = group.id === 'ungrouped'
+                ? `“未分组”下有 ${profileCount} 个配置。删除该分组入口后，配置仍会保留在“全部主机”中。是否继续？`
+                : `分组“${group.name}”下有 ${profileCount} 个配置。删除分组后，这些配置将移动到“未分组”。是否继续？`
+            if (!await this.confirmProfileGroupDeletion('分组中仍有配置', message)) {
+                return
+            }
+        }
+
+        if (this.isPersistedProfileGroup(group)) {
+            await this.profilesService.deleteProfileGroup(group)
+            await this.config.save()
+        } else {
+            this.hideVirtualProfileGroup(group)
+            await this.refreshProfileGroups()
+            await this.refreshProfiles()
+        }
+
+        if (this.selectedGroupId === group.id || this.getDescendantGroupIds(group).has(this.selectedGroupId)) {
+            this.selectedGroupId = 'all'
+        }
+    }
+
+    private async confirmProfileGroupDeletion (title: string, message: string): Promise<boolean> {
+        this.deleteGroupConfirmTitle = title
+        this.deleteGroupConfirmMessage = message
+
+        const modal = this.ngbModal.open(this.deleteGroupConfirmModal, {
+            centered: true,
+            ariaLabelledBy: 'delete-group-confirm-title',
+        })
+        const result = await modal.result.catch(() => false)
+        return result === true
+    }
+
+    private isPersistedProfileGroup (group: PartialProfileGroup<ProfileGroup>): boolean {
+        return (this.config.store.groups ?? []).some(candidate => candidate.id === group.id)
+    }
+
+    private hideVirtualProfileGroup (group: PartialProfileGroup<ProfileGroup>): void {
+        this.hiddenProfileGroupIds.add(group.id)
+        window.localStorage.hiddenProfileGroupIds = JSON.stringify([...this.hiddenProfileGroupIds])
+    }
+
+    private detachProfileFromHiddenGroup (profile: PartialProfile<Profile>): PartialProfile<Profile> {
+        if (!profile.group || !this.hiddenProfileGroupIds.has(slugify(profile.group))) {
+            return profile
+        }
+        const detachedProfile = deepClone(profile)
+        delete detachedProfile.group
+        return detachedProfile
     }
 
     async refreshProfileGroups (): Promise<void> {
         const profileGroupCollapsed = JSON.parse(window.localStorage.profileGroupCollapsed ?? '{}')
-        const groups = await this.profilesService.getProfileGroups({ includeNonUserGroup: true, includeProfiles: true })
+        let groups = await this.profilesService.getProfileGroups({ includeNonUserGroup: true, includeProfiles: true })
+        const detachedProfiles = groups
+            .filter(group => group.id !== 'ungrouped' && this.hiddenProfileGroupIds.has(group.id))
+            .flatMap(group => (group.profiles ?? []).map(profile => this.detachProfileFromHiddenGroup(profile)))
+        groups = groups.filter(group => !this.hiddenProfileGroupIds.has(group.id))
+        const ungrouped = groups.find(group => group.id === 'ungrouped')
+        if (ungrouped && detachedProfiles.length) {
+            ungrouped.profiles = [...ungrouped.profiles ?? [], ...detachedProfiles]
+        }
         groups.sort((a, b) => a.name.localeCompare(b.name))
         groups.sort((a, b) => (a.id === 'built-in' || !a.editable ? 1 : 0) - (b.id === 'built-in' || !b.editable ? 1 : 0))
         groups.sort((a, b) => (a.id === 'ungrouped' ? 0 : 1) - (b.id === 'ungrouped' ? 0 : 1))

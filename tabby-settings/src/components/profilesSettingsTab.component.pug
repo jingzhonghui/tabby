@@ -41,10 +41,10 @@
                         profile-icon([icon]='group.icon ?? "far fa-folder"', [color]='group.color')
                     span.group-name {{ getGroupName(group) }}
                     span.group-count {{ getGroupProfileCount(group) }}
-                .group-actions(*ngIf='group.editable && group.name')
-                    button.btn.btn-sm.btn-link((click)='editProfileGroup(group)', title='编辑分组', [attr.aria-label]='"编辑分组 " + group.name')
+                .group-actions(*ngIf='group.name && (group.editable || canDeleteProfileGroup(group))')
+                    button.btn.btn-sm.btn-link(*ngIf='group.editable', type='button', (click)='$event.stopPropagation(); editProfileGroup(group)', title='编辑分组', [attr.aria-label]='"编辑分组 " + group.name')
                         i.fas.fa-pencil-alt
-                    button.btn.btn-sm.btn-link((click)='deleteProfileGroup(group)', title='删除分组', [attr.aria-label]='"删除分组 " + group.name')
+                    button.btn.btn-sm.btn-link(*ngIf='canDeleteProfileGroup(group)', type='button', (click)='$event.stopPropagation(); deleteProfileGroup(group)', title='删除分组', [attr.aria-label]='"删除分组 " + group.name')
                         i.fas.fa-trash-alt
 
             ng-container(*ngIf='!group.collapsed')
@@ -105,7 +105,13 @@
                     span.ms-1 新建配置
 
         .profile-list(*ngIf='visibleProfiles.length')
-            .profile-row(
+            .profile-list-header.profile-grid
+                .profile-header-main 主机
+                .profile-header-group 分组
+                .profile-header-type 类型
+                .profile-header-actions 操作
+
+            .profile-row.profile-grid(
                 *ngFor='let profile of visibleProfiles',
                 [class.profile-row-readonly]='profile.isBuiltin',
                 (click)='profile.isBuiltin ? null : editProfile(profile)'
@@ -126,7 +132,7 @@
                         i.fas.fa-pencil-alt
                     button.btn.btn-sm.btn-link((click)='$event.stopPropagation(); launchProfile(profile)', title='启动', [attr.aria-label]='"启动 " + profile.name')
                         i.fas.fa-play
-                    div(ngbDropdown, placement='bottom-right top-right auto')
+                    div(ngbDropdown, container='body', placement='bottom-right top-right auto')
                         button.btn.btn-sm.btn-link(ngbDropdownToggle, (click)='$event.stopPropagation()', title='更多操作', [attr.aria-label]='profile.name + " 的更多操作"')
                             i.fas.fa-fw.fa-ellipsis-vertical
                         div(ngbDropdownMenu)
@@ -152,6 +158,18 @@
             button.btn.btn-primary(*ngIf='!filter && canCreateProfileInSelectedGroup()', (click)='newProfile()')
                 i.fas.fa-plus
                 span.ms-1 新建配置
+
+ng-template(#deleteGroupConfirmModal let-modal)
+    .modal-header
+        h4.modal-title#delete-group-confirm-title {{ deleteGroupConfirmTitle }}
+        button.btn-close(type='button', aria-label='关闭', (click)='modal.dismiss()')
+
+    .modal-body
+        p.mb-0 {{ deleteGroupConfirmMessage }}
+
+    .modal-footer
+        button.btn.btn-secondary(type='button', (click)='modal.dismiss()') 取消
+        button.btn.btn-danger(type='button', (click)='modal.close(true)') 删除
 
 ng-template(#advancedSettingsModal let-modal)
     .modal-header

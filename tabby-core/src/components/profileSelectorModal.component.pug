@@ -1,0 +1,132 @@
+.modal-header
+    h4.modal-title 配置和连接
+    button.btn-close(type='button', aria-label='关闭', (click)='modalInstance.dismiss()')
+
+.modal-body.profile-selector-modal
+    .profile-selector-workspace
+        aside.group-sidebar
+            .group-sidebar-header
+                .group-sidebar-title 分组
+
+            button.group-item.group-item-all(
+                type='button',
+                [class.active]='selectedGroupId === "all"',
+                (click)='selectGroup("all")'
+            )
+                .group-icon
+                    i.fas.fa-server
+                span.group-name 全部主机
+                span.group-count {{ data.entries.length }}
+
+            button.group-item.group-item-all(
+                type='button',
+                *ngIf='data.recentEntries.length',
+                [class.active]='selectedGroupId === "recent"',
+                (click)='selectGroup("recent")'
+            )
+                .group-icon
+                    i.fas.fa-history
+                span.group-name 最近使用
+                span.group-count {{ data.recentEntries.length }}
+
+            .group-tree
+                ng-container(*ngFor='let group of rootGroups')
+                    ng-container(*ngTemplateOutlet='recursiveGroup; context: {$implicit: group, depth: 0}')
+
+            ng-template(#recursiveGroup let-group let-depth='depth')
+                .group-item-wrap([style.--group-depth]='depth')
+                    button.group-expander(
+                        type='button',
+                        *ngIf='group.children?.length',
+                        (click)='toggleGroupCollapse(group)',
+                        [attr.aria-expanded]='!group.collapsed'
+                    )
+                        i.fas([class.fa-chevron-right]='group.collapsed', [class.fa-chevron-down]='!group.collapsed')
+                    .group-expander-placeholder(*ngIf='!group.children?.length')
+                    button.group-item(
+                        type='button',
+                        [class.active]='selectedGroupId === group.id',
+                        (click)='selectGroup(group.id)'
+                    )
+                        .group-icon
+                            profile-icon([icon]='group.icon ?? "far fa-folder"', [color]='group.color')
+                        span.group-name {{ getGroupName(group) }}
+                        span.group-count {{ getGroupEntryCount(group) }}
+
+                ng-container(*ngIf='!group.collapsed')
+                    ng-container(*ngFor='let child of group.children')
+                        ng-container(*ngTemplateOutlet='recursiveGroup; context: {$implicit: child, depth: depth + 1}')
+
+        section.profile-panel
+            .profile-panel-heading
+                div
+                    h4.profile-panel-title {{ getSelectedGroupName() }}
+                    .profile-panel-subtitle 当前显示 {{ visibleEntries.length }} 项，共 {{ selectedEntryCount }} 项
+
+                .input-group.profile-search
+                    .input-group-text
+                        i.fas.fa-fw.fa-search
+                    input.form-control(
+                        type='search',
+                        placeholder='搜索主机',
+                        aria-label='搜索主机',
+                        [(ngModel)]='filter',
+                        (ngModelChange)='onFilterChange()',
+                        (keydown.enter)='selectFirstVisible()',
+                        autofocus
+                    )
+
+                button.btn.btn-sm.btn-link.clear-recent(
+                    *ngIf='selectedGroupId === "recent" && data.recentEntries.length',
+                    type='button',
+                    (click)='clearRecentProfiles()'
+                )
+                    i.fas.fa-eraser.me-1
+                    span 清除记录
+
+            .profile-list(*ngIf='visibleEntries.length')
+                button.profile-row(
+                    type='button',
+                    *ngFor='let entry of visibleEntries',
+                    (click)='selectEntry(entry)'
+                )
+                    .profile-main
+                        profile-icon.profile-icon([icon]='entry.profile.icon', [color]='entry.profile.color')
+                        .profile-copy
+                            .profile-name {{ entry.profile.name }}
+                            .profile-description(*ngIf='entry.description') {{ entry.description }}
+                    .profile-group-path {{ entry.groupPath }}
+                    .profile-type(*ngIf='entry.typeLabel') {{ entry.typeLabel }}
+                    i.fas.fa-chevron-right.profile-open-icon
+
+            .profile-empty(*ngIf='!visibleEntries.length')
+                .profile-empty-icon
+                    i.fas([class.fa-search]='filter', [class.fa-server]='!filter')
+                h5(*ngIf='filter') 没有匹配的主机
+                h5(*ngIf='!filter') 当前分组暂无主机
+                p.text-muted(*ngIf='filter') 请尝试其他搜索关键词
+
+.modal-footer.profile-selector-footer
+    .quick-connect(*ngIf='data.quickConnectProviders.length')
+        select.form-select.quick-provider(
+            *ngIf='data.quickConnectProviders.length > 1',
+            [(ngModel)]='quickConnectProviderId',
+            aria-label='连接类型'
+        )
+            option(*ngFor='let provider of data.quickConnectProviders', [ngValue]='provider.id') {{ getQuickConnectProviderName(provider) }}
+        .input-group.quick-connect-input
+            .input-group-text
+                i.fas.fa-link
+            input.form-control(
+                type='text',
+                placeholder='快速连接地址',
+                [(ngModel)]='quickConnectQuery',
+                (keydown.enter)='connectQuick()'
+            )
+            button.btn.btn-primary(type='button', [disabled]='!quickConnectQuery.trim()', (click)='connectQuick()') 连接
+
+    .footer-actions
+        button.btn.btn-outline-secondary(type='button', (click)='manageProfiles()')
+            i.fas.fa-window-restore.me-1
+            span 管理配置
+        button.btn.btn-secondary(type='button', (click)='modalInstance.dismiss()') 取消

@@ -18,8 +18,6 @@ profile-icon {
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    border: 1px solid var(--theme-bg-less-2);
-    border-radius: .55rem;
     background: var(--theme-bg);
     box-sizing: border-box;
 }
@@ -190,7 +188,7 @@ profile-icon {
 }
 
 .group-item-wrap:hover .group-actions,
-.group-item-wrap:focus-within .group-actions {
+.group-actions:focus-within {
     display: flex;
 }
 
@@ -249,11 +247,31 @@ profile-icon {
     padding-right: .25rem;
 }
 
-.profile-row {
+.profile-grid {
     display: grid;
-    grid-template-columns: minmax(12rem, 1fr) minmax(7rem, .55fr) auto auto;
+    grid-template-columns: minmax(12rem, 1fr) minmax(8rem, .55fr) 5rem 6.5rem;
     align-items: center;
     gap: .8rem;
+}
+
+.profile-list-header {
+    flex: 0 0 auto;
+    padding: .45rem .6rem .35rem .75rem;
+    border-bottom: 1px solid var(--theme-bg-less-2);
+    color: var(--theme-fg-more);
+    font-size: .72rem;
+    font-weight: 600;
+}
+
+.profile-header-type {
+    text-align: center;
+}
+
+.profile-header-actions {
+    text-align: right;
+}
+
+.profile-row {
     min-height: 3.65rem;
     padding: .55rem .6rem .55rem .75rem;
     border: 1px solid transparent;
@@ -313,12 +331,14 @@ profile-icon {
 
 .profile-type {
     min-width: 2.7rem;
+    justify-self: center;
     text-align: center;
 }
 
 .profile-actions {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     opacity: .35;
     transition: opacity .12s ease;
 
@@ -370,11 +390,12 @@ profile-icon {
         grid-template-columns: 12rem minmax(0, 1fr);
     }
 
-    .profile-row {
-        grid-template-columns: minmax(9rem, 1fr) auto auto;
+    .profile-grid {
+        grid-template-columns: minmax(9rem, 1fr) 5rem 6.5rem;
     }
 
-    .profile-group-path {
+    .profile-group-path,
+    .profile-header-group {
         display: none;
     }
 }
@@ -409,12 +430,13 @@ profile-icon {
         flex-basis: 100%;
     }
 
-    .profile-row {
-        grid-template-columns: minmax(8rem, 1fr) auto;
+    .profile-grid {
+        grid-template-columns: minmax(8rem, 1fr) 6.5rem;
         gap: .4rem;
     }
 
-    .profile-type {
+    .profile-type,
+    .profile-header-type {
         display: none;
     }
 
