@@ -94,11 +94,8 @@ export class Window {
             bwOptions.frame = true
         } else {
             bwOptions.titleBarStyle = 'hidden'
-            if (process.platform === 'win32') {
-                bwOptions.titleBarOverlay = {
-                    color: '#00000000',
-                }
-            }
+            // Windows: 不设置 titleBarOverlay，使用自定义 WindowControlsComponent
+            // macOS: titleBarStyle='hidden' 保留原生红绿灯按钮
         }
 
         if (process.platform === 'darwin') {

@@ -75,7 +75,7 @@ title-bar(
                     )
 
             .btn-space.background(
-                [class.persistent]='config.store.appearance.frame == "thin"',
+                [class.persistent]='config.store.appearance.frame == "thin" && hostApp.platform !== Platform.Windows',
                 [class.drag]='config.store.appearance.frame == "thin" \
                 && ((config.store.appearance.tabsLocation !== "left" && config.store.appearance.tabsLocation !== "right") || hostApp.platform !== Platform.macOS)'
             )
@@ -100,11 +100,7 @@ title-bar(
                 *ngIf='config.store.appearance.frame == "thin" \
                 && config.store.appearance.tabsLocation !== "left" \
                 && config.store.appearance.tabsLocation !== "right" \
-                && hostApp.platform == Platform.Linux',
-            )
-
-            div.window-controls-spacer(
-                *ngIf='config.store.appearance.frame == "thin" && (hostApp.platform == Platform.Windows) && (config.store.appearance.tabsLocation == "top")',
+                && (hostApp.platform == Platform.Linux || hostApp.platform == Platform.Windows)',
             )
         .content
             start-page.content-tab.content-tab-active(*ngIf='ready && app.tabs.length == 0')

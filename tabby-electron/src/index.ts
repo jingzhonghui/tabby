@@ -188,8 +188,9 @@ export default class ElectronModule {
     }
 
     private updateWindowControlsColor () {
-        // if windows and not using native frame, WCO does not exist, return.
-        if (this.hostApp.platform === Platform.Windows && this.config.store.appearance.frame === 'native') {
+        // Native frame 模式使用完整的 OS 窗口边框，thin/full 模式在 Windows 上
+        // 不再使用原生 WCO overlay（改用自定义 WindowControlsComponent）
+        if (this.hostApp.platform === Platform.Windows) {
             return
         }
 
