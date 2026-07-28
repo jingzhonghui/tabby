@@ -71,8 +71,9 @@ export class ServerMonitorPanelComponent implements OnInit, OnDestroy {
     loading = true
     error: string|null = null
     private updateTimer: any
+    private fetchInProgress = false
     private previousCPUStats: Map<number, CPUStats> = new Map()
-    private previousNetworkStats: Map<string, { rxBytes: number, txBytes: number }> = new Map()
+    private previousNetworkStats: Map<string, { rxBytes: number, txBytes: number, timestamp: number }> = new Map()
 
     async ngOnInit (): Promise<void> {
         await this.fetchStats()
@@ -86,6 +87,10 @@ export class ServerMonitorPanelComponent implements OnInit, OnDestroy {
     }
 
     async fetchStats (): Promise<void> {
+        // 避免慢速 SSH 请求与下一轮轮询重叠。
+        if (this.fetchInProgress) return
+        this.fetchInProgress = true
+
         try {
             // Execute all commands in parallel with allSettled to handle partial failures
             const results = await Promise.allSettled([
@@ -121,12 +126,34 @@ export class ServerMonitorPanelComponent implements OnInit, OnDestroy {
                     : (this.stats?.loadAverage ?? []),
             }
 
+            // 空响应无效，保留上一次有效数据。
+            if (cpuInfo.status === 'fulfilled' && !cpuInfo.value.trim()) {
+                newStats.cpu = this.stats?.cpu ?? newStats.cpu
+            }
+            if (memInfo.status === 'fulfilled' && !/^MemTotal:\s+\d+/m.test(memInfo.value)) {
+                newStats.memory = this.stats?.memory ?? newStats.memory
+            }
+            if (diskInfo.status === 'fulfilled' && !diskInfo.value.trim()) {
+                newStats.disks = this.stats?.disks ?? newStats.disks
+            }
+            if (netInfo.status === 'fulfilled' && !netInfo.value.trim()) {
+                newStats.network = this.stats?.network ?? newStats.network
+            }
+            if (uptimeInfo.status === 'fulfilled' && !uptimeInfo.value.trim()) {
+                newStats.uptime = this.stats?.uptime ?? newStats.uptime
+            }
+            if (loadInfo.status === 'fulfilled' && !loadInfo.value.trim()) {
+                newStats.loadAverage = this.stats?.loadAverage ?? newStats.loadAverage
+            }
+
             this.stats = newStats
             this.loading = false
             this.error = null
         } catch (err) {
             this.error = err.message
             this.loading = false
+        } finally {
+            this.fetchInProgress = false
         }
     }
 
@@ -286,6 +313,10 @@ export class ServerMonitorPanelComponent implements OnInit, OnDestroy {
                 continue
             }
 
+            // 仅显示主分区、引导分区和 /mnt 下的数据分区。
+            if (mountedOn !== '/' && mountedOn !== '/boot' &&
+                !mountedOn.startsWith('/mnt/')) continue
+
             disks.push({ filesystem, size, used, available, usagePercent, mountedOn })
         }
 
@@ -314,7 +345,13 @@ export class ServerMonitorPanelComponent implements OnInit, OnDestroy {
 
     private parseNetworkInfo (data: string): NetworkInterface[] {
         const lines = data.split('\n').slice(2) // Skip headers
-        const interfaces: NetworkInterface[] = []
+        let rxBytes = 0
+        let txBytes = 0
+        let rxPackets = 0
+        let txPackets = 0
+        let rxErrors = 0
+        let txErrors = 0
+        let hasInterface = false
 
         for (const line of lines) {
             const trimmed = line.trim()
@@ -323,43 +360,34 @@ export class ServerMonitorPanelComponent implements OnInit, OnDestroy {
             const match = trimmed.match(/^(\w+):\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/)
             if (!match) continue
 
-            const name = match[1]
-            const rxBytes = parseInt(match[2], 10)
-            const rxPackets = parseInt(match[3], 10)
-            const rxErrors = parseInt(match[4], 10)
-            const txBytes = parseInt(match[10], 10)
-            const txPackets = parseInt(match[11], 10)
-            const txErrors = parseInt(match[12], 10)
-
-            const prevStats = this.previousNetworkStats.get(name)
-            let rxSpeed = 0
-            let txSpeed = 0
-
-            if (prevStats) {
-                // Calculate rate per second (we update every 3s)
-                rxSpeed = Math.max(0, rxBytes - prevStats.rxBytes) / 3
-                txSpeed = Math.max(0, txBytes - prevStats.txBytes) / 3
-            }
-
-            this.previousNetworkStats.set(name, { rxBytes, txBytes })
-
-            // Only show interfaces with traffic or if we have previous stats
-            if (prevStats || rxBytes > 0 || txBytes > 0) {
-                interfaces.push({
-                    name,
-                    rxSpeed: Math.round(rxSpeed),
-                    txSpeed: Math.round(txSpeed),
-                    rxBytes,
-                    txBytes,
-                    rxPackets,
-                    txPackets,
-                    rxErrors,
-                    txErrors,
-                })
-            }
+            hasInterface = true
+            rxBytes += parseInt(match[2], 10) || 0
+            rxPackets += parseInt(match[3], 10) || 0
+            rxErrors += parseInt(match[4], 10) || 0
+            txBytes += parseInt(match[10], 10) || 0
+            txPackets += parseInt(match[11], 10) || 0
+            txErrors += parseInt(match[12], 10) || 0
         }
 
-        return interfaces
+        if (!hasInterface) return []
+
+        const previous = this.previousNetworkStats.get('total')
+        const elapsedSeconds = previous ? Math.max((Date.now() - previous.timestamp) / 1000, 1) : 0
+        const rxSpeed = previous ? Math.max(0, rxBytes - previous.rxBytes) / elapsedSeconds : 0
+        const txSpeed = previous ? Math.max(0, txBytes - previous.txBytes) / elapsedSeconds : 0
+        this.previousNetworkStats.set('total', { rxBytes, txBytes, timestamp: Date.now() })
+
+        return [{
+            name: '总计',
+            rxSpeed: Math.round(rxSpeed),
+            txSpeed: Math.round(txSpeed),
+            rxBytes,
+            txBytes,
+            rxPackets,
+            txPackets,
+            rxErrors,
+            txErrors,
+        }]
     }
 
     private parseUptime (data: string): string {
