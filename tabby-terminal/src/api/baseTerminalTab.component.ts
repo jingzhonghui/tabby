@@ -345,7 +345,7 @@ export class BaseTerminalTabComponent<P extends BaseTerminalProfile> extends Bas
             this.frontend?.focus()
         })
 
-        this.subscribeUntilDestroyed(this.platform.themeChanged$, () => {
+        this.subscribeUntilDestroyed(this.themes.themeChanged$, () => {
             this.configure()
         })
 

@@ -3,7 +3,7 @@ import { BehaviorSubject, filter, firstValueFrom, fromEvent, takeUntil } from 'r
 import { Injector } from '@angular/core'
 import { ConfigService, getCSSFontFamily, getWindows10Build, HostAppService, HotkeysService, Platform, PlatformService, TerminalColorScheme, ThemesService } from 'tabby-core'
 import { Frontend, SearchOptions, SearchState } from './frontend'
-import { Terminal, ITheme } from '@xterm/xterm'
+import { Terminal, IDecoration, IMarker, ITheme } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { LigaturesAddon } from '@xterm/addon-ligatures'
 import { ISearchOptions, SearchAddon } from '@xterm/addon-search'
@@ -15,6 +15,7 @@ import { CanvasAddon } from '@xterm/addon-canvas'
 import { BaseTerminalProfile } from '../api/interfaces'
 import { getXtermBackgroundColor } from '../helpers'
 import { generatePalette } from '../generatePalette'
+import { findSemanticHighlights, SemanticColor } from './semanticHighlighter'
 import './xterm.css'
 
 const COLOR_NAMES = [
@@ -89,6 +90,9 @@ export class XTermFrontend extends Frontend {
     private pinnedToBottom = true
     private pendingRendererRecovery = false
     private rendererRecoveryAttempts = 0
+    private semanticHighlightFrame?: number
+    private semanticDecorations: { decoration: IDecoration, marker: IMarker }[] = []
+    private semanticColors?: Record<SemanticColor, string>
 
     private configService: ConfigService
     private hotkeysService: HotkeysService
@@ -124,7 +128,10 @@ export class XTermFrontend extends Frontend {
         })
         this.xterm.onResize(({ cols, rows }) => {
             this.resize.next({ rows, columns: cols })
+            this.scheduleSemanticHighlight()
         })
+        this.xterm.onScroll(() => this.scheduleSemanticHighlight())
+        this.xterm.onWriteParsed(() => this.scheduleSemanticHighlight())
         this.xterm.onTitleChange(title => {
             this.title.next(title)
         })
@@ -284,6 +291,7 @@ export class XTermFrontend extends Frontend {
         this.xterm.buffer.onBufferChange(() => {
             const altBufferActive = this.xterm.buffer.active.type === 'alternate'
             this.alternateScreenActive.next(altBufferActive)
+            this.scheduleSemanticHighlight()
         })
     }
 
@@ -410,6 +418,10 @@ export class XTermFrontend extends Frontend {
 
     destroy (): void {
         super.destroy()
+        if (this.semanticHighlightFrame !== undefined) {
+            cancelAnimationFrame(this.semanticHighlightFrame)
+        }
+        this.clearSemanticHighlights()
         this.webGLAddon?.dispose()
         this.canvasAddon?.dispose()
         this.xterm.dispose()
@@ -532,6 +544,15 @@ export class XTermFrontend extends Frontend {
             theme[COLOR_NAMES[i]] = scheme.colors[i]
         }
 
+        this.semanticColors = {
+            error: scheme.colors[9],
+            warning: scheme.colors[11],
+            success: scheme.colors[10],
+            info: scheme.colors[12],
+            muted: scheme.colors[8],
+            accent: scheme.colors[14],
+        }
+
         if (this.configService.store.terminal.paletteGenerate) {
             theme.extendedAnsi = generatePalette(
                 scheme.colors,
@@ -541,9 +562,120 @@ export class XTermFrontend extends Frontend {
             )
         }
 
+        // decoration 保存具体 RGB，配色切换时需要重建。
+        this.clearSemanticHighlights()
         if (!deepEqual(this.configuredTheme, theme)) {
             this.xterm.options.theme = theme
             this.configuredTheme = theme
+        }
+        this.scheduleSemanticHighlight()
+    }
+
+    private scheduleSemanticHighlight (): void {
+        if (!this.configService.store.terminal.semanticHighlighting) {
+            this.clearSemanticHighlights()
+            return
+        }
+        if (!this.opened || this.semanticHighlightFrame !== undefined) {
+            return
+        }
+        this.semanticHighlightFrame = requestAnimationFrame(() => {
+            this.semanticHighlightFrame = undefined
+            this.refreshSemanticHighlights()
+        })
+    }
+
+    private clearSemanticHighlights (): void {
+        for (const item of this.semanticDecorations) {
+            item.decoration.dispose()
+            item.marker.dispose()
+        }
+        this.semanticDecorations = []
+    }
+
+    private refreshSemanticHighlights (): void {
+        this.clearSemanticHighlights()
+        const buffer = this.xterm.buffer.active
+        if (!this.configService.store.terminal.semanticHighlighting || !this.semanticColors || buffer.type === 'alternate') {
+            return
+        }
+        const semanticColors = this.semanticColors
+
+        const firstLine = buffer.viewportY
+        const lastLine = Math.min(buffer.length, firstLine + this.xterm.rows)
+        const cursorLine = buffer.baseY + buffer.cursorY
+        const cell = buffer.getNullCell()
+
+        for (let y = firstLine; y < lastLine; y++) {
+            const line = buffer.getLine(y)
+            if (!line) {
+                continue
+            }
+
+            const spans: { start: number, end: number, x: number, width: number, eligible: boolean }[] = []
+            let text = ''
+            for (let x = 0; x < Math.min(line.length, this.xterm.cols); x++) {
+                const current = line.getCell(x, cell)
+                if (!current || current.getWidth() === 0) {
+                    continue
+                }
+                const chars = current.getChars() || ' '
+                const start = text.length
+                text += chars
+                spans.push({
+                    start,
+                    end: text.length,
+                    x,
+                    width: current.getWidth(),
+                    eligible: current.isFgDefault() && !current.isInverse() && !current.isInvisible(),
+                })
+            }
+
+            for (const highlight of findSemanticHighlights(text.trimEnd())) {
+                let runStart = -1
+                let runEnd = -1
+                const flush = () => {
+                    if (runStart < 0) {
+                        return
+                    }
+                    const marker = this.xterm.registerMarker(y - cursorLine)
+                    const decoration = this.xterm.registerDecoration({
+                        marker,
+                        x: runStart,
+                        width: runEnd - runStart,
+                        foregroundColor: semanticColors[highlight.color],
+                        layer: 'bottom',
+                    })
+                    if (decoration) {
+                        this.semanticDecorations.push({ decoration, marker })
+                    } else {
+                        marker.dispose()
+                    }
+                    runStart = -1
+                    runEnd = -1
+                }
+
+                for (const span of spans) {
+                    if (span.end <= highlight.start || span.start >= highlight.end) {
+                        continue
+                    }
+                    if (!span.eligible) {
+                        flush()
+                        continue
+                    }
+                    if (runStart < 0) {
+                        runStart = span.x
+                        runEnd = span.x + span.width
+                    } else if (span.x === runEnd) {
+                        runEnd += span.width
+                    } else {
+                        flush()
+                        runStart = span.x
+                        runEnd = span.x + span.width
+                    }
+                }
+                flush()
+            }
         }
     }
 

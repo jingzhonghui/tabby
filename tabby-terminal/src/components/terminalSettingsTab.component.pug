@@ -33,6 +33,15 @@ div
 
     .form-line
         .header
+            .title(translate) Semantic highlighting
+            .description(translate) Highlights uncolored timestamps, paths, URLs, addresses and status words using the current color scheme's bright colors
+        toggle(
+            [(ngModel)]='config.store.terminal.semanticHighlighting',
+            (ngModelChange)='config.save()'
+        )
+
+    .form-line
+        .header
             .title(translate) Sixel graphics support (experimental)
             .description(translate) Display images via Sixel escape sequences
         toggle(

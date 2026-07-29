@@ -261,6 +261,9 @@ export class ProfilesService {
             .filter(profile => !profile.isTemplate)
             .filter(profile => profile.id && !this.config.store.profileBlacklist.includes(profile.id))
             .map(profile => {
+                if (profile.group && this.isHiddenProfileGroup(profile.group)) {
+                    delete profile.group
+                }
                 if (profile.isBuiltin && !profile.icon) {
                     profile.icon = 'fas fa-network-wired'
                 }
@@ -277,7 +280,7 @@ export class ProfilesService {
         groups = groups.map(group => ({
             ...group,
             profiles: (group.profiles ?? []).filter(profile => visibleProfileKeys.has(profileKey(profile))),
-        }))
+        })).filter(group => group.id !== 'ungrouped' && !this.isHiddenProfileGroup(group.id))
         if (!this.config.store.terminal.showBuiltinProfiles) {
             groups = groups.filter(group => group.id === 'ungrouped' || group.editable === true || Boolean(group.profiles?.length))
         }
@@ -338,6 +341,11 @@ export class ProfilesService {
         }
 
         return this.selector.showProfileSelector(data)
+    }
+
+    private isHiddenProfileGroup (groupId: string): boolean {
+        const hiddenGroupIds: string[] = JSON.parse(window.localStorage.hiddenProfileGroupIds ?? '[]')
+        return hiddenGroupIds.includes(groupId) || hiddenGroupIds.includes(slugify(groupId))
     }
 
     getRecentProfiles (): PartialProfile<Profile>[] {
