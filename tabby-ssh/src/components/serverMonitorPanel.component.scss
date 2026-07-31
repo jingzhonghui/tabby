@@ -233,3 +233,18 @@
 .btn-link svg {
     width: 12px;
 }
+
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 48px 0;
+    opacity: 0.7;
+    font-size: 13px;
+
+    > i {
+        font-size: 26px;
+    }
+}

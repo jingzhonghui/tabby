@@ -148,6 +148,21 @@ $tab-border-radius: 4px;
         }
     }
 
+    // Marching-ants strip along the bottom while transfers are running
+    .btn-transfers.has-active-transfers {
+        background-image: linear-gradient(90deg, var(--bs-green, #51cf66) 50%, transparent 50%);
+        background-repeat: repeat-x;
+        background-size: 12px 2px;
+        background-position: 0 100%;
+        animation: transfers-marching-ants 0.5s linear infinite;
+    }
+
+    @keyframes transfers-marching-ants {
+        to {
+            background-position: 12px 100%;
+        }
+    }
+
     &>.tabs {
         flex: 0 1 auto;
         display: flex;
@@ -235,6 +250,30 @@ hotkey-hint {
 
 ::ng-deep .btn-update svg {
     fill: cyan;
+}
+
+.transfers-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.transfers-panel {
+    position: fixed !important;
+    top: calc(var(--tabs-height, 38px) + 8px) !important;
+    left: 50% !important;
+    transform: translateX(-50%);
+    z-index: 1051;
+    min-width: 340px;
+    margin: 0;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
+
+    &.vibrant {
+        background: rgba(var(--bs-dark-rgb), 0.55);
+        backdrop-filter: blur(10px);
+    }
 }
 
 ::ng-deep .broadcast-status-warning {

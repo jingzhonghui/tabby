@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { Component, Input, HostListener, HostBinding, ViewChildren, ViewChild } from '@angular/core'
+import { Component, Input, HostListener, HostBinding, ViewChildren } from '@angular/core'
 import { trigger, style, animate, transition, state } from '@angular/animations'
-import { NgbDropdown, NgbModal } from '@ng-bootstrap/ng-bootstrap'
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
 import { CdkDragDrop } from '@angular/cdk/drag-drop'
 
 import { HostAppService, Platform } from '../api/hostApp'
@@ -71,10 +71,10 @@ export class AppRootComponent {
     @HostBinding('class.platform-linux') platformClassLinux = process.platform === 'linux'
     @HostBinding('class.no-tabs') noTabs = true
     @ViewChildren(TabBodyComponent) tabBodies: TabBodyComponent[]
-    @ViewChild('activeTransfersDropdown') activeTransfersDropdown: NgbDropdown
     unsortedTabs: BaseTabComponent[] = []
     updatesAvailable = false
     activeTransfers: FileTransfer[] = []
+    transfersMenuOpen = false
     private logger: Logger
 
     constructor (
@@ -171,7 +171,7 @@ export class AppRootComponent {
 
         platform.fileTransferStarted$.subscribe(transfer => {
             this.activeTransfers.push(transfer)
-            this.activeTransfersDropdown.open()
+            this.transfersMenuOpen = true
         })
 
         config.ready$.toPromise().then(async () => {
@@ -242,9 +242,26 @@ export class AppRootComponent {
         this.app.moveTabToIndex(tab, event.currentIndex)
     }
 
+    get hasActiveTransfers (): boolean {
+        return this.activeTransfers.some(x => !x.isComplete())
+    }
+
+    toggleTransfersMenu (): void {
+        this.transfersMenuOpen = !this.transfersMenuOpen
+    }
+
+    closeTransfersMenu (): void {
+        this.transfersMenuOpen = false
+    }
+
+    @HostListener('document:keydown.escape')
+    onEscapeKey (): void {
+        this.transfersMenuOpen = false
+    }
+
     onTransfersChange () {
         if (this.activeTransfers.length === 0) {
-            this.activeTransfersDropdown.close()
+            this.transfersMenuOpen = false
         }
     }
 

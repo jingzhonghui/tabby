@@ -6,7 +6,9 @@
     button.btn.btn-link.text-decoration-none((click)='close()') !{require('../../../tabby-core/src/icons/times.svg')}
 
 .body
-    div(*ngIf='loading') 正在加载服务器状态...
+    .loading-state(*ngIf='loading')
+        i.fas.fa-circle-notch.fa-spin
+        span 正在加载服务器状态...
 
     .alert.alert-danger(*ngIf='error')
         i.fas.fa-exclamation-triangle.me-2

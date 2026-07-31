@@ -58,22 +58,6 @@ title-bar(
                         [fastHtmlBind]='button.icon'
                     )
 
-                .d-flex(
-                    ngbDropdown,
-                    container='body',
-                    #activeTransfersDropdown='ngbDropdown'
-                )
-                    button.btn.btn-secondary.btn-tab-bar(
-                        [hidden]='activeTransfers.length == 0',
-                        [ngbTooltip]='"File transfers"|translate',
-                        ngbDropdownToggle
-                    ) !{require('../icons/transfers.svg')}
-                    transfers-menu(
-                        ngbDropdownMenu,
-                        [(transfers)]='activeTransfers',
-                        (transfersChange)='onTransfersChange()'
-                    )
-
             .btn-space.background(
                 [class.persistent]='config.store.appearance.frame == "thin" && hostApp.platform !== Platform.Windows',
                 [class.drag]='config.store.appearance.frame == "thin" \
@@ -81,6 +65,13 @@ title-bar(
             )
 
             .btn-group.background
+                button.btn.btn-secondary.btn-tab-bar.btn-transfers(
+                    *ngIf='activeTransfers.length > 0',
+                    [class.has-active-transfers]='hasActiveTransfers',
+                    [ngbTooltip]='"File transfers"|translate',
+                    (click)='toggleTransfersMenu()'
+                ) !{require('../icons/transfers.svg')}
+
                 .d-flex(
                     *ngFor='let button of rightToolbarButtons'
                 )
@@ -112,5 +103,18 @@ title-bar(
                 [active]='tab == app.activeTab',
                 [tab]='tab',
             )
+
+.transfers-backdrop(
+    *ngIf='transfersMenuOpen',
+    (click)='closeTransfersMenu()'
+)
+.transfers-panel.dropdown-menu.show(
+    *ngIf='transfersMenuOpen',
+    [class.vibrant]='isVibrant'
+)
+    transfers-menu(
+        [(transfers)]='activeTransfers',
+        (transfersChange)='onTransfersChange()'
+    )
 
 ng-template(ngbModalContainer)

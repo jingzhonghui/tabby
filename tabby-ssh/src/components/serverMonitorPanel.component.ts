@@ -70,10 +70,22 @@ export class ServerMonitorPanelComponent implements OnInit, OnDestroy {
     stats: ServerStats|null = null
     loading = true
     error: string|null = null
+    fetching = false
     private updateTimer: any
-    private fetchInProgress = false
     private previousCPUStats: Map<number, CPUStats> = new Map()
     private previousNetworkStats: Map<string, { rxBytes: number, txBytes: number, timestamp: number }> = new Map()
+
+    // 单条命令拿全部数据，用分隔符切分各段，避免每轮开 6 个 SSH channel。
+    // 分隔符必须加引号且不以 = 开头：zsh 会对开头的 = 做命令路径展开，
+    // 展开失败会中止整条命令；stderr 无需重定向，channel 层已忽略。
+    private static readonly MONITOR_COMMAND = [
+        'echo "@@TABBY_MON_STAT@@"; cat /proc/stat',
+        'echo "@@TABBY_MON_MEM@@"; cat /proc/meminfo',
+        'echo "@@TABBY_MON_DF@@"; df -P -B1',
+        'echo "@@TABBY_MON_NET@@"; cat /proc/net/dev',
+        'echo "@@TABBY_MON_UPTIME@@"; cat /proc/uptime',
+        'echo "@@TABBY_MON_LOAD@@"; cat /proc/loadavg',
+    ].join('; ')
 
     async ngOnInit (): Promise<void> {
         await this.fetchStats()
@@ -88,73 +100,69 @@ export class ServerMonitorPanelComponent implements OnInit, OnDestroy {
 
     async fetchStats (): Promise<void> {
         // 避免慢速 SSH 请求与下一轮轮询重叠。
-        if (this.fetchInProgress) return
-        this.fetchInProgress = true
+        if (this.fetching) return
+        this.fetching = true
 
         try {
-            // Execute all commands in parallel with allSettled to handle partial failures
-            const results = await Promise.allSettled([
-                this.executeCommand('cat /proc/stat'),
-                this.executeCommand('cat /proc/meminfo'),
-                this.executeCommand('df -h'),
-                this.executeCommand('cat /proc/net/dev'),
-                this.executeCommand('cat /proc/uptime'),
-                this.executeCommand('cat /proc/loadavg'),
-            ])
+            const output = await this.executeCommand(ServerMonitorPanelComponent.MONITOR_COMMAND)
+            const sections = this.parseSections(output)
+            const prev = this.stats
 
-            const [cpuInfo, memInfo, diskInfo, netInfo, uptimeInfo, loadInfo] = results
-
-            // Build new stats incrementally, keeping old values if a command fails
-            const newStats: ServerStats = {
-                cpu: cpuInfo.status === 'fulfilled'
-                    ? this.parseCPUInfo(cpuInfo.value)
-                    : (this.stats?.cpu ?? { usagePercent: 0, cores: 0 }),
-                memory: memInfo.status === 'fulfilled'
-                    ? this.parseMemoryInfo(memInfo.value)
-                    : (this.stats?.memory ?? { total: 0, free: 0, available: 0, buffers: 0, cached: 0, used: 0, usagePercent: 0 }),
-                disks: diskInfo.status === 'fulfilled'
-                    ? this.parseDiskInfo(diskInfo.value)
-                    : (this.stats?.disks ?? []),
-                network: netInfo.status === 'fulfilled'
-                    ? this.parseNetworkInfo(netInfo.value)
-                    : (this.stats?.network ?? []),
-                uptime: uptimeInfo.status === 'fulfilled'
-                    ? this.parseUptime(uptimeInfo.value)
-                    : (this.stats?.uptime ?? ''),
-                loadAverage: loadInfo.status === 'fulfilled'
-                    ? this.parseLoadAverage(loadInfo.value)
-                    : (this.stats?.loadAverage ?? []),
+            // 整段缺失说明远端 shell 没按预期执行，输出到控制台便于排查。
+            if (!sections.stat && !sections.mem) {
+                console.warn('[server-monitor] 无法解析监控输出:', output.slice(0, 500))
             }
 
-            // 空响应无效，保留上一次有效数据。
-            if (cpuInfo.status === 'fulfilled' && !cpuInfo.value.trim()) {
-                newStats.cpu = this.stats?.cpu ?? newStats.cpu
-            }
-            if (memInfo.status === 'fulfilled' && !/^MemTotal:\s+\d+/m.test(memInfo.value)) {
-                newStats.memory = this.stats?.memory ?? newStats.memory
-            }
-            if (diskInfo.status === 'fulfilled' && !diskInfo.value.trim()) {
-                newStats.disks = this.stats?.disks ?? newStats.disks
-            }
-            if (netInfo.status === 'fulfilled' && !netInfo.value.trim()) {
-                newStats.network = this.stats?.network ?? newStats.network
-            }
-            if (uptimeInfo.status === 'fulfilled' && !uptimeInfo.value.trim()) {
-                newStats.uptime = this.stats?.uptime ?? newStats.uptime
-            }
-            if (loadInfo.status === 'fulfilled' && !loadInfo.value.trim()) {
-                newStats.loadAverage = this.stats?.loadAverage ?? newStats.loadAverage
+            const parsedDisks = sections.df ? this.parseDiskInfo(sections.df) : []
+            const parsedNetwork = sections.net ? this.parseNetworkInfo(sections.net) : []
+
+            // 某一段缺失、为空或解析不出有效条目（输出被超时截断）时，保留上一次的有效数据。
+            this.stats = {
+                cpu: sections.stat
+                    ? this.parseCPUInfo(sections.stat)
+                    : (prev?.cpu ?? { usagePercent: 0, cores: 0 }),
+                memory: sections.mem && /^MemTotal:\s+\d+/m.test(sections.mem)
+                    ? this.parseMemoryInfo(sections.mem)
+                    : (prev?.memory ?? { total: 0, free: 0, available: 0, buffers: 0, cached: 0, used: 0, usagePercent: 0 }),
+                disks: parsedDisks.length > 0
+                    ? parsedDisks
+                    : (prev?.disks ?? []),
+                network: parsedNetwork.length > 0
+                    ? parsedNetwork
+                    : (prev?.network ?? []),
+                uptime: sections.uptime
+                    ? this.parseUptime(sections.uptime)
+                    : (prev?.uptime ?? ''),
+                loadAverage: sections.load
+                    ? this.parseLoadAverage(sections.load)
+                    : (prev?.loadAverage ?? []),
             }
 
-            this.stats = newStats
             this.loading = false
             this.error = null
         } catch (err) {
             this.error = err.message
             this.loading = false
         } finally {
-            this.fetchInProgress = false
+            this.fetching = false
         }
+    }
+
+    private parseSections (output: string): Record<string, string> {
+        const sections: Record<string, string> = {}
+        let current: string|null = null
+
+        for (const line of output.split('\n')) {
+            const match = /^@@TABBY_MON_(\w+)@@\s*$/.exec(line)
+            if (match) {
+                current = match[1].toLowerCase()
+                sections[current] = ''
+            } else if (current) {
+                sections[current] += line + '\n'
+            }
+        }
+
+        return sections
     }
 
     private async executeCommand (command: string): Promise<string> {
@@ -197,7 +205,7 @@ export class ServerMonitorPanelComponent implements OnInit, OnDestroy {
                 resolve(output)
             })
 
-            // Safety timeout - if channel doesn't close within 5s, resolve with what we have
+            // Safety timeout - if channel doesn't close within 8s, resolve with what we have
             setTimeout(() => {
                 if (!closed) {
                     closed = true
@@ -206,7 +214,7 @@ export class ServerMonitorPanelComponent implements OnInit, OnDestroy {
                     closeSub.unsubscribe()
                     resolve(output)
                 }
-            }, 5000)
+            }, 8000)
         })
     }
 
@@ -250,7 +258,7 @@ export class ServerMonitorPanelComponent implements OnInit, OnDestroy {
                 const idleDiff = stats.idle - prevStats.idle
 
                 if (totalDiff > 0) {
-                    const usagePercent = Math.round(((totalDiff - idleDiff) / totalDiff) * 100)
+                    const usagePercent = ((totalDiff - idleDiff) / totalDiff) * 100
                     totalUsagePercent += usagePercent
                     validCores++
                 }
@@ -259,7 +267,7 @@ export class ServerMonitorPanelComponent implements OnInit, OnDestroy {
             this.previousCPUStats.set(coreNum, stats)
         }
 
-        const usagePercent = validCores > 0 ? Math.round(totalUsagePercent / validCores) : 0
+        const usagePercent = validCores > 0 ? Math.round((totalUsagePercent / validCores) * 10) / 10 : 0
         return { usagePercent, cores: totalCores }
     }
 
@@ -280,7 +288,7 @@ export class ServerMonitorPanelComponent implements OnInit, OnDestroy {
         const buffers = values.Buffers || 0
         const cached = values.Cached || 0
         const used = total - available
-        const usagePercent = total > 0 ? Math.round((used / total) * 100) : 0
+        const usagePercent = total > 0 ? Math.round((used / total) * 1000) / 10 : 0
 
         return { total, free, available, buffers, cached, used, usagePercent }
     }
@@ -297,15 +305,16 @@ export class ServerMonitorPanelComponent implements OnInit, OnDestroy {
             const parts = trimmed.split(/\s+/)
             if (parts.length < 6) continue
 
-            // The last field is the mount point, the one before last is usage %
-            // The first field could be a filesystem name with spaces
-            const usagePercentStr = parts[parts.length - 2]
-            const usagePercent = parseInt(usagePercentStr.replace('%', ''), 10) || 0
+            // df -P -B1 输出为字节数，用字节计算百分比可保留一位小数；
+            // 与 df 的 Capacity 口径一致：used / (used + available)。
             const mountedOn = parts.slice(5, parts.length - 1).join(' ') || parts[parts.length - 1]
             const filesystem = parts[0]
             const size = this.parseSize(parts[1])
             const used = this.parseSize(parts[2])
             const available = this.parseSize(parts[3])
+            const usagePercent = used + available > 0
+                ? Math.round(1000 * used / (used + available)) / 10
+                : parseInt(parts[parts.length - 2].replace('%', ''), 10) || 0
 
             // Skip pseudo filesystems
             if (filesystem.includes('tmpfs') || filesystem.includes('devtmpfs') ||
