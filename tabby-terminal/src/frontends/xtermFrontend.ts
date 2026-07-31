@@ -67,6 +67,11 @@ class FlowControl {
 export class XTermFrontend extends Frontend {
     enableResizing = true
     xterm: Terminal
+    /**
+     * Optional interceptor run before the built-in key handling.
+     * Return false to swallow the event (it never reaches the shell).
+     */
+    extraKeyEventHandler?: (event: KeyboardEvent) => boolean
     protected xtermCore: any
     protected enableWebGL = false
     private element?: HTMLElement
@@ -192,6 +197,11 @@ export class XTermFrontend extends Frontend {
         }
 
         this.xterm.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+            if (event.type === 'keydown' && this.extraKeyEventHandler && !this.extraKeyEventHandler(event)) {
+                event.stopPropagation()
+                event.preventDefault()
+                return false
+            }
             if (this.hostApp.platform !== Platform.Web) {
                 if (
                     event.getModifierState('Meta') && event.key.toLowerCase() === 'v' ||
@@ -790,6 +800,27 @@ export class XTermFrontend extends Frontend {
 
     isAlternateScreenActive (): boolean {
         return this.xterm.buffer.active.type === 'alternate'
+    }
+
+    /** Pixel coordinates of the cell below the cursor, relative to the viewport */
+    getCursorPixelRect (): { left: number, top: number, width: number, height: number } | null {
+        if (!this.xterm.element) {
+            return null
+        }
+        const buffer = this.xterm.buffer.active
+        const dims = this.xtermCore._renderService?.dimensions?.css?.cell
+        const cellWidth = dims?.width ?? this.xtermCore.charMeasure?.width
+        const cellHeight = dims?.height ?? this.xtermCore.charMeasure?.height
+        if (!cellWidth || !cellHeight) {
+            return null
+        }
+        const rect = this.xterm.element.getBoundingClientRect()
+        return {
+            left: rect.left + buffer.cursorX * cellWidth,
+            top: rect.top + (buffer.cursorY + 1) * cellHeight,
+            width: cellWidth,
+            height: cellHeight,
+        }
     }
 
     private setFontSize () {

@@ -6,6 +6,10 @@ search-panel(
     [frontend]='frontend',
     (close)='showSearchPanel = false; frontend.cancelSearch()'
 )
+command-suggestion-panel(
+    *ngIf='frontendIsReady && hasFocus && frontend && config.store.terminal.commandSuggestion',
+    [tab]='this'
+)
 
 button.btn.btn-sm.btn-link.toolbar-pin-button(
     *ngIf='enableToolbar && !pinToolbar',

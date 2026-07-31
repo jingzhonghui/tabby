@@ -65,6 +65,7 @@ export class TerminalConfigProvider extends ConfigProvider {
             paletteHarmonious: false,
             replaceNewlinesWithSpacesOnPaste: false,
             trimWhitespaceOnPaste: true,
+            commandSuggestion: true,
         },
     }
 

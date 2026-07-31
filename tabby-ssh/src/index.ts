@@ -6,7 +6,7 @@ import { ToastrModule } from 'ngx-toastr'
 import { NgxFilesizeModule } from 'ngx-filesize'
 import TabbyCoreModule, { ConfigProvider, TabRecoveryProvider, HotkeyProvider, TabContextMenuItemProvider, ProfileProvider, ProfileTransferProvider } from 'tabby-core'
 import { SettingsTabProvider } from 'tabby-settings'
-import TabbyTerminalModule from 'tabby-terminal'
+import TabbyTerminalModule, { CommandSuggestionProvider } from 'tabby-terminal'
 
 import { SSHProfileSettingsComponent } from './components/sshProfileSettings.component'
 import { SSHPortForwardingModalComponent } from './components/sshPortForwardingModal.component'
@@ -29,6 +29,7 @@ import { SFTPContextMenuItemProvider } from './api/contextMenu'
 import { CommonSFTPContextMenu } from './sftpContextMenu'
 import { SFTPCreateDirectoryModalComponent } from './components/sftpCreateDirectoryModal.component'
 import { SSHProfileTransferProvider } from './profileTransfer'
+import { SSHCommandSuggestionProvider } from './services/sshCommandSuggestionProvider'
 
 /** @hidden */
 @NgModule({
@@ -50,6 +51,7 @@ import { SSHProfileTransferProvider } from './profileTransfer'
         { provide: ProfileProvider, useExisting: SSHProfilesService, multi: true },
         { provide: ProfileTransferProvider, useExisting: SSHProfileTransferProvider, multi: true },
         { provide: SFTPContextMenuItemProvider, useClass: CommonSFTPContextMenu, multi: true },
+        { provide: CommandSuggestionProvider, useClass: SSHCommandSuggestionProvider, multi: true },
     ],
     declarations: [
         SSHProfileSettingsComponent,

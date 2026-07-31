@@ -73,6 +73,15 @@ div.mt-4
             (ngModelChange)='config.save()',
         )
 
+    .form-line
+        .header
+            .title(translate) Command suggestions
+            .description(translate) Suggest matching history commands while typing (Tab to complete, Esc to dismiss)
+        toggle(
+            [(ngModel)]='config.store.terminal.commandSuggestion',
+            (ngModelChange)='config.save()',
+        )
+
 div.mt-4
     h3(translate) Mouse
 

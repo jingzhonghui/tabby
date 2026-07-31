@@ -20,9 +20,12 @@ import { TerminalToolbarComponent } from './components/terminalToolbar.component
 import { ColorSchemeSelectorComponent } from './components/colorSchemeSelector.component'
 import { InputProcessingSettingsComponent } from './components/inputProcessingSettings.component'
 import { ColorSchemeSettingsForModeComponent } from './components/colorSchemeSettingsForMode.component'
+import { CommandSuggestionPanelComponent } from './components/commandSuggestionPanel.component'
 
 import { TerminalDecorator } from './api/decorator'
 import { TerminalContextMenuItemProvider } from './api/contextMenuProvider'
+import { CommandSuggestionProvider } from './api/commandSuggestionProvider'
+import { LocalCommandSuggestionProvider } from './services/localCommandSuggestionProvider'
 import { TerminalColorSchemeProvider } from './api/colorSchemeProvider'
 import { TerminalSettingsTabProvider, AppearanceSettingsTabProvider, ColorSchemeSettingsTabProvider } from './settings'
 import { DebugDecorator } from './features/debug'
@@ -64,6 +67,7 @@ import { DefaultColorSchemes } from './colorSchemes'
 
         { provide: CLIHandler, useClass: TerminalCLIHandler, multi: true },
         { provide: TerminalColorSchemeProvider, useClass: DefaultColorSchemes, multi: true },
+        { provide: CommandSuggestionProvider, useClass: LocalCommandSuggestionProvider, multi: true },
     ],
     declarations: [
         ColorPickerComponent,
@@ -78,6 +82,7 @@ import { DefaultColorSchemes } from './colorSchemes'
         TerminalToolbarComponent,
         InputProcessingSettingsComponent,
         ColorSchemeSettingsForModeComponent,
+        CommandSuggestionPanelComponent,
     ],
     exports: [
         ColorPickerComponent,
@@ -87,6 +92,7 @@ import { DefaultColorSchemes } from './colorSchemes'
         LoginScriptsSettingsComponent,
         TerminalToolbarComponent,
         InputProcessingSettingsComponent,
+        CommandSuggestionPanelComponent,
     ],
 })
 export default class TerminalModule { } // eslint-disable-line @typescript-eslint/no-extraneous-class
@@ -105,4 +111,5 @@ export * from './api/middleware'
 export * from './session'
 export { LoginScriptsSettingsComponent, StreamProcessingSettingsComponent }
 export { MultifocusService } from './services/multifocus.service'
+export { CommandSuggestionProvider } from './api/commandSuggestionProvider'
 export { TerminalColorScheme } from 'tabby-core' // was previously defined in this plugin
