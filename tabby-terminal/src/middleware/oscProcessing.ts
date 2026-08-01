@@ -1,4 +1,3 @@
-import * as os from 'os'
 import { Subject, Observable } from 'rxjs'
 import { SessionMiddleware } from '../api/middleware'
 
@@ -66,11 +65,10 @@ export class OSCProcessor extends SessionMiddleware {
             if (oscCode === 1337) {
                 const paramString = oscParams.join(';')
                 if (paramString.startsWith('CurrentDir=')) {
-                    let reportedCWD = paramString.split('=', 2)[1]
-                    if (reportedCWD.startsWith('~')) {
-                        reportedCWD = os.homedir() + reportedCWD.substring(1)
+                    const reportedCWD = paramString.substring('CurrentDir='.length)
+                    if (reportedCWD) {
+                        this.cwdReported.next(reportedCWD)
                     }
-                    this.cwdReported.next(reportedCWD)
                 } else {
                     console.debug('Unsupported OSC 1337 parameter:', paramString)
                 }

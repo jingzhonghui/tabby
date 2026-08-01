@@ -1,6 +1,6 @@
 import * as C from 'constants'
 import { posix as path } from 'path'
-import { Component, Input, Output, EventEmitter, Inject, Optional } from '@angular/core'
+import { Component, Input, Output, EventEmitter, Inject, Optional, OnChanges, SimpleChanges } from '@angular/core'
 import { FileUpload, DirectoryUpload, DirectoryDownload, MenuItemOptions, NotificationsService, PlatformService } from 'tabby-core'
 import { SFTPSession, SFTPFile } from '../session/sftp'
 import { SSHSession } from '../session/ssh'
@@ -18,7 +18,7 @@ interface PathSegment {
     templateUrl: './sftpPanel.component.pug',
     styleUrls: ['./sftpPanel.component.scss'],
 })
-export class SFTPPanelComponent {
+export class SFTPPanelComponent implements OnChanges {
     @Input() session: SSHSession
     @Output() closed = new EventEmitter<void>()
     sftp: SFTPSession
@@ -31,6 +31,7 @@ export class SFTPPanelComponent {
     editingPath: string|null = null
     showFilter = false
     filterText = ''
+    private navigationSeq = 0
 
     constructor (
         private ngbModal: NgbModal,
@@ -52,7 +53,17 @@ export class SFTPPanelComponent {
         }
     }
 
+    ngOnChanges (changes: SimpleChanges): void {
+        const pathChange = changes.path
+        if (!pathChange.firstChange && pathChange.currentValue !== pathChange.previousValue) {
+            this.navigate(pathChange.currentValue).catch(error => {
+                this.notifications.error(error.message)
+            })
+        }
+    }
+
     async navigate (newPath: string, fallbackOnError = true): Promise<void> {
+        const sequence = ++this.navigationSeq
         const previousPath = this.path
         this.path = newPath
         this.pathChange.next(this.path)
@@ -76,10 +87,17 @@ export class SFTPPanelComponent {
         this.fileList = null
         this.filteredFileList = []
         try {
-            this.fileList = await this.sftp.readdir(this.path)
+            const fileList = await this.sftp.readdir(this.path)
+            if (sequence !== this.navigationSeq) {
+                return
+            }
+            this.fileList = fileList
         } catch (error) {
+            if (sequence !== this.navigationSeq) {
+                return
+            }
             this.notifications.error(error.message)
-            if (previousPath && fallbackOnError) {
+            if (fallbackOnError) {
                 this.navigate(previousPath, false)
             }
             return
@@ -152,6 +170,10 @@ export class SFTPPanelComponent {
             }
         }
         return 'fas fa-file'
+    }
+
+    async refresh (): Promise<void> {
+        await this.navigate(this.path)
     }
 
     goUp (): void {

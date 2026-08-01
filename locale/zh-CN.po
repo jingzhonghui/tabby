@@ -2614,3 +2614,27 @@ msgstr "补全"
 #: tabby-terminal/src/components/commandSuggestionPanel.component.pug
 msgid "to dismiss"
 msgstr "关闭"
+
+#: tabby-ssh/src/components/remoteCWDIntegrationModal.component.pug
+msgid "Remote directory synchronization is not enabled"
+msgstr "远程目录同步未启用"
+
+#: tabby-ssh/src/components/remoteCWDIntegrationModal.component.pug
+msgid "Enable it for this SSH session or add it to the remote shell profile?"
+msgstr "要仅为本次 SSH 会话启用，还是写入远程 Shell 配置永久启用？"
+
+#: tabby-ssh/src/components/remoteCWDIntegrationModal.component.pug
+msgid "Enable once"
+msgstr "本次启用"
+
+#: tabby-ssh/src/components/remoteCWDIntegrationModal.component.pug
+msgid "Enable permanently"
+msgstr "永久启用"
+
+#: tabby-ssh/src/components/remoteCWDIntegrationModal.component.pug
+msgid "Cancel"
+msgstr "取消"
+
+#: tabby-ssh/src/components/sshTab.component.ts
+msgid "Could not configure remote directory synchronization"
+msgstr "无法配置远程目录同步"

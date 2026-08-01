@@ -1,16 +1,19 @@
 import * as russh from 'russh'
 import { marker as _ } from '@biesbjerg/ngx-translate-extract-marker'
 import colors from 'ansi-colors'
-import { Component, Injector, HostListener } from '@angular/core'
+import { Component, Injector, HostListener, ViewChild } from '@angular/core'
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
 import { Platform, ProfilesService } from 'tabby-core'
 import { BaseTerminalTabComponent, ConnectableTerminalTabComponent } from 'tabby-terminal'
 import { SSHService } from '../services/ssh.service'
 import { KeyboardInteractivePrompt, SSHSession } from '../session/ssh'
 import { SSHPortForwardingModalComponent } from './sshPortForwardingModal.component'
+import { RemoteCWDIntegrationModalComponent } from './remoteCWDIntegrationModal.component'
 import { SSHProfile } from '../api'
 import { SSHShellSession } from '../session/shell'
 import { SSHMultiplexerService } from '../services/sshMultiplexer.service'
+import { RemoteCWDIntegrationService } from '../services/remoteCWDIntegration.service'
+import { SFTPPanelComponent } from './sftpPanel.component'
 
 /** @hidden */
 @Component({
@@ -31,6 +34,9 @@ export class SSHTabComponent extends ConnectableTerminalTabComponent<SSHProfile>
     sftpPath = '/'
     enableToolbar = true
     activeKIPrompt: KeyboardInteractivePrompt|null = null
+    @ViewChild(SFTPPanelComponent) private sftpPanel: SFTPPanelComponent|null = null
+    private cwdIntegrationDismissed = false
+    private cwdIntegrationCheck: Promise<void>|null = null
 
     constructor (
         injector: Injector,
@@ -38,10 +44,20 @@ export class SSHTabComponent extends ConnectableTerminalTabComponent<SSHProfile>
         private ngbModal: NgbModal,
         private profilesService: ProfilesService,
         private sshMultiplexer: SSHMultiplexerService,
+        private cwdIntegration: RemoteCWDIntegrationService,
     ) {
         super(injector)
-        this.sessionChanged$.subscribe(() => {
+        this.sessionChanged$.subscribe(session => {
             this.activeKIPrompt = null
+            this.cwdIntegrationDismissed = false
+            this.cwdIntegrationCheck = null
+            if (session) {
+                this.subscribeUntilDestroyed(session.cwdReported$, cwd => {
+                    if (this.sftpPanelVisible && cwd.startsWith('/')) {
+                        this.sftpPath = cwd
+                    }
+                })
+            }
         })
     }
 
@@ -223,7 +239,63 @@ export class SSHTabComponent extends ConnectableTerminalTabComponent<SSHProfile>
         this.sftpPath = await this.session?.getWorkingDirectory() ?? this.sftpPath
         setTimeout(() => {
             this.sftpPanelVisible = true
+            this.checkCWDIntegration()
         }, 100)
+    }
+
+    private checkCWDIntegration (): void {
+        if (
+            this.cwdIntegrationDismissed ||
+            this.cwdIntegrationCheck !== null ||
+            !this.sshSession ||
+            !this.session ||
+            this.session.hasReportedWorkingDirectory()
+        ) {
+            return
+        }
+        const sshSession = this.sshSession
+        const shellSession = this.session
+        this.cwdIntegrationCheck = this.checkCWDIntegrationAsync(sshSession, shellSession)
+            .catch(error => {
+                this.notifications.error(
+                    this.translate.instant(_('Could not configure remote directory synchronization')),
+                    String(error?.message ?? error),
+                )
+            })
+            .finally(() => {
+                this.cwdIntegrationCheck = null
+            })
+    }
+
+    private async checkCWDIntegrationAsync (sshSession: SSHSession, shellSession: SSHShellSession): Promise<void> {
+        await new Promise(resolve => setTimeout(resolve, 400))
+        if (this.sshSession !== sshSession || this.session !== shellSession || !shellSession.open) {
+            return
+        }
+        const inspection = await this.cwdIntegration.inspect(sshSession)
+        if (shellSession.hasReportedWorkingDirectory()) {
+            return
+        }
+        if (inspection.status === 'configured') {
+            return
+        }
+        if (inspection.status !== 'not-configured' || !inspection.shell) {
+            return
+        }
+        const modal = this.ngbModal.open(RemoteCWDIntegrationModalComponent)
+        const response = await modal.result.catch(() => 2)
+        if (response === 2) {
+            this.cwdIntegrationDismissed = true
+            return
+        }
+        if (response === 0) {
+            await this.cwdIntegration.enableForCurrentSession(shellSession, inspection.shell)
+            await this.sftpPanel?.refresh()
+            return
+        }
+        await this.cwdIntegration.enablePermanently(sshSession, inspection)
+        await this.cwdIntegration.enableForCurrentSession(shellSession, inspection.shell)
+        await this.sftpPanel?.refresh()
     }
 
     async openMonitor (): Promise<void> {

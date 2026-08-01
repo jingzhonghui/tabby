@@ -18,6 +18,7 @@ export abstract class BaseSession {
     protected destroyed = new Subject<void>()
     protected loginScriptProcessor: LoginScriptProcessor | null = null
     protected reportedCWD?: string
+    private hasReportedCWD = false
     private initialDataBuffer = Buffer.from('')
     private initialDataBufferReleased = false
 
@@ -25,11 +26,20 @@ export abstract class BaseSession {
     get binaryOutput$ (): Observable<Buffer> { return this.binaryOutput }
     get closed$ (): Observable<void> { return this.closed }
     get destroyed$ (): Observable<void> { return this.destroyed }
+    get cwdReported$ (): Observable<string> { return this.cwdReported }
+
+    hasReportedWorkingDirectory (): boolean {
+        return this.hasReportedCWD
+    }
+
+    private cwdReported = new Subject<string>()
 
     constructor (protected logger: Logger) {
         this.middleware.push(this.oscProcessor)
         this.oscProcessor.cwdReported$.subscribe(cwd => {
             this.reportedCWD = cwd
+            this.hasReportedCWD = true
+            this.cwdReported.next(cwd)
         })
 
         this.middleware.outputToTerminal$.subscribe(data => {
@@ -80,6 +90,7 @@ export abstract class BaseSession {
         this.middleware.close()
         this.closed.complete()
         this.destroyed.complete()
+        this.cwdReported.complete()
         this.output.complete()
         this.binaryOutput.complete()
     }

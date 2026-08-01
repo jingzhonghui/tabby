@@ -1,0 +1,20 @@
+.modal-header
+    h3.m-0(translate) Remote directory synchronization is not enabled
+
+.modal-body.pt-0
+    div(translate) Enable it for this SSH session or add it to the remote shell profile?
+
+.modal-footer
+    .w-100
+        button.d-block.w-100.mb-3.btn.btn-primary(
+            (click)='enableOnce()',
+            translate
+        ) Enable once
+        button.d-block.w-100.mb-3.btn.btn-secondary(
+            (click)='enablePermanently()',
+            translate
+        ) Enable permanently
+        button.d-block.w-100.btn.btn-secondary(
+            (click)='cancel()',
+            translate
+        ) Cancel

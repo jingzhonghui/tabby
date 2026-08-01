@@ -1,4 +1,5 @@
 import { Observable, Subject } from 'rxjs'
+import type { RemoteShellFamily } from '../services/remoteCWDIntegration.service'
 import stripAnsi from 'strip-ansi'
 import { Injector } from '@angular/core'
 import { LogService } from 'tabby-core'
@@ -104,6 +105,13 @@ export class SSHShellSession extends BaseSession {
 
     async gracefullyKillProcess (): Promise<void> {
         this.kill('TERM')
+    }
+
+    enableCWDIntegration (shell: RemoteShellFamily): void {
+        const hook = shell === 'bash'
+            ? '__tabby_report_cwd() { printf \'\\033]1337;CurrentDir=%s\\007\' "$PWD"; }; if declare -p PROMPT_COMMAND 2>/dev/null | grep -q \'declare -a\'; then PROMPT_COMMAND+=(__tabby_report_cwd); elif [[ " ${PROMPT_COMMAND:-} " != *" __tabby_report_cwd "* ]]; then PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND; }__tabby_report_cwd"; fi; __tabby_report_cwd'
+            : 'function __tabby_report_cwd() { printf \'\\033]1337;CurrentDir=%s\\007\' "$PWD"; }; if (( ${precmd_functions[(I)__tabby_report_cwd]} == 0 )); then precmd_functions+=(__tabby_report_cwd); fi; __tabby_report_cwd'
+        this.write(Buffer.from(hook + '\r'))
     }
 
     supportsWorkingDirectory (): boolean {
