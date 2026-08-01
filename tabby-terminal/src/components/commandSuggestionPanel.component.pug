@@ -6,11 +6,15 @@
     .suggestion-item(
         *ngFor='let item of suggestions; let i = index; trackBy: trackByCommand',
         [class.selected]='i === selectedIndex',
+        [title]='item',
+        [attr.aria-label]='item',
         (mousedown)='$event.preventDefault(); accept(item)',
         (mouseenter)='selectedIndex = i'
     )
         span.command {{item}}
     .suggestion-hint
+        kbd ↑↓
+        span(translate) select
         kbd Tab
         span(translate) to complete
         kbd Esc

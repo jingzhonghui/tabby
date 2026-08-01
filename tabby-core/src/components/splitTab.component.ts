@@ -1,9 +1,13 @@
 import { Observable, Subject, takeWhile } from 'rxjs'
 import { Component, Injectable, ViewChild, ViewContainerRef, EmbeddedViewRef, AfterViewInit, OnDestroy, Injector } from '@angular/core'
+import { TranslateService } from '@ngx-translate/core'
 import { BaseTabComponent, BaseTabProcess, GetRecoveryTokenOptions } from './baseTab.component'
 import { TabRecoveryProvider, RecoveryToken } from '../api/tabRecovery'
 import { TabsService, NewTabParameters } from '../services/tabs.service'
 import { HotkeysService } from '../services/hotkeys.service'
+import { ProfilesService } from '../services/profiles.service'
+import { SelectorService } from '../services/selector.service'
+import { SelectorOption } from '../api/selector'
 import { TabRecoveryService } from '../services/tabRecovery.service'
 
 export type SplitOrientation = 'v' | 'h'
@@ -260,6 +264,9 @@ export class SplitTabComponent extends BaseTabComponent implements AfterViewInit
         private hotkeys: HotkeysService,
         private tabsService: TabsService,
         private tabRecovery: TabRecoveryService,
+        private profilesService: ProfilesService,
+        private selector: SelectorService,
+        private translate: TranslateService,
         injector: Injector,
     ) {
         super(injector)
@@ -704,12 +711,62 @@ export class SplitTabComponent extends BaseTabComponent implements AfterViewInit
         this.focus(all[target])
     }
 
-    async splitTab (tab: BaseTabComponent, dir: SplitDirection): Promise<BaseTabComponent|null> {
-        const newTab = await this.tabsService.duplicate(tab)
-        if (newTab) {
-            await this.addTab(newTab, tab, dir)
+    async splitTab (tab: BaseTabComponent, dir: SplitDirection, mode?: 'clone'|'profile'): Promise<BaseTabComponent|null> {
+        const selectedMode = mode ?? await this.selectSplitMode()
+        if (!selectedMode) {
+            return null
         }
-        return newTab
+
+        let newTab: BaseTabComponent|null = null
+        if (selectedMode === 'clone') {
+            newTab = await this.tabsService.duplicate(tab, { includeState: false })
+        } else {
+            const profile = await this.profilesService.showProfileSelector().catch(() => null)
+            if (profile) {
+                const params = await this.profilesService.newTabParametersForProfile(profile)
+                if (params) {
+                    newTab = this.tabsService.create(params)
+                }
+            }
+        }
+
+        if (!newTab) {
+            return null
+        }
+
+        try {
+            await this.addTab(newTab, tab, dir)
+            return newTab
+        } catch (err) {
+            newTab.destroy()
+            throw err
+        }
+    }
+
+    private async selectSplitMode (): Promise<'clone'|'profile'|null> {
+        if (this.selector.active) {
+            return null
+        }
+
+        const options: SelectorOption<'clone'|'profile'>[] = [
+            {
+                name: this.translate.instant('Clone current connection'),
+                description: this.translate.instant('Create a new terminal using the current connection settings'),
+                result: 'clone',
+                weight: -1,
+            },
+            {
+                name: this.translate.instant('Open a connection from a profile'),
+                description: this.translate.instant('Choose a profile and create a new terminal connection'),
+                result: 'profile',
+            },
+        ]
+
+        try {
+            return await this.selector.show(this.translate.instant('Split mode'), options)
+        } catch {
+            return null
+        }
     }
 
     /**

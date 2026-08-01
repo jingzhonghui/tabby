@@ -2103,6 +2103,21 @@ msgstr "间隔"
 msgid "Split"
 msgstr "拆分"
 
+msgid "Split mode"
+msgstr "拆分模式"
+
+msgid "Clone current connection"
+msgstr "克隆当前连接"
+
+msgid "Create a new terminal using the current connection settings"
+msgstr "使用当前连接设置创建新的终端"
+
+msgid "Open a connection from a profile"
+msgstr "从配置创建连接"
+
+msgid "Choose a profile and create a new terminal connection"
+msgstr "选择配置并创建新的终端连接"
+
 #: tabby-core/src/hotkeys.ts:160
 msgid "Split to the bottom"
 msgstr "向下拆分"
@@ -2587,6 +2602,10 @@ msgstr "命令候选提示"
 #: tabby-terminal/src/components/terminalSettingsTab.component.pug
 msgid "Suggest matching history commands while typing (Tab to complete, Esc to dismiss)"
 msgstr "输入命令时模糊匹配历史命令并提示（Tab 补全，Esc 关闭）"
+
+#: tabby-terminal/src/components/commandSuggestionPanel.component.pug
+msgid "select"
+msgstr "选择"
 
 #: tabby-terminal/src/components/commandSuggestionPanel.component.pug
 msgid "to complete"

@@ -30,7 +30,7 @@ export class CommandSuggestionPanelComponent implements OnInit, OnDestroy {
     @Input() tab: BaseTerminalTabComponent<any>
 
     suggestions: string[] = []
-    selectedIndex = 0
+    selectedIndex: number|null = null
     visible = false
     position = { left: 0, top: 0 }
 
@@ -89,18 +89,32 @@ export class CommandSuggestionPanelComponent implements OnInit, OnDestroy {
         }
         switch (event.key) {
             case 'ArrowUp':
-                this.selectedIndex = (this.selectedIndex + this.suggestions.length - 1) % this.suggestions.length
+                this.selectedIndex = this.selectedIndex === null
+                    ? this.suggestions.length - 1
+                    : (this.selectedIndex + this.suggestions.length - 1) % this.suggestions.length
                 this.cdr.detectChanges()
                 return false
             case 'ArrowDown':
-                this.selectedIndex = (this.selectedIndex + 1) % this.suggestions.length
+                this.selectedIndex = this.selectedIndex === null
+                    ? 0
+                    : (this.selectedIndex + 1) % this.suggestions.length
                 this.cdr.detectChanges()
                 return false
             case 'Tab':
+            case 'Enter':
+                if (this.selectedIndex !== null) {
+                    this.accept(this.suggestions[this.selectedIndex])
+                    this.cdr.detectChanges()
+                    return false
+                }
+                return true
             case 'ArrowRight':
-                this.accept(this.suggestions[this.selectedIndex])
-                this.cdr.detectChanges()
-                return false
+                if (this.selectedIndex !== null) {
+                    this.accept(this.suggestions[this.selectedIndex])
+                    this.cdr.detectChanges()
+                    return false
+                }
+                return true
             case 'Escape':
                 this.suppressed = true
                 this.hide()
@@ -112,6 +126,9 @@ export class CommandSuggestionPanelComponent implements OnInit, OnDestroy {
 
     private onInput (data: Buffer): void {
         const text = data.toString('utf-8')
+        if (text.length > 0) {
+            this.selectedIndex = null
+        }
         for (const ch of text) {
             if (ch === '\x1b') {
                 // Escape sequence: arrows, Home/End, bracketed paste markers, etc.
@@ -211,7 +228,7 @@ export class CommandSuggestionPanelComponent implements OnInit, OnDestroy {
             return
         }
         this.suggestions = results
-        this.selectedIndex = 0
+        this.selectedIndex = null
         this.updatePosition()
         this.visible = true
         this.cdr.detectChanges()
@@ -240,6 +257,7 @@ export class CommandSuggestionPanelComponent implements OnInit, OnDestroy {
         this.requestSeq++
         this.visible = false
         this.suggestions = []
+        this.selectedIndex = null
         this.cdr.detectChanges()
     }
 }
