@@ -107,7 +107,8 @@ $tab-border-radius: 4px;
         background: var(--theme-bg-more);
 
         &.active {
-            border-color: color-mix(in srgb, var(--theme-fg) 14%, transparent);
+            border-color: var(--theme-primary);
+            background: color-mix(in srgb, var(--theme-primary) 14%, var(--theme-bg-more));
         }
     }
 
