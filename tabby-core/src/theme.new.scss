@@ -358,12 +358,14 @@ hotkey-input-modal {
 
 *::-webkit-scrollbar {
     background: rgba(0, 0, 0, .125);
-    width: 10px;
+    width: 5px;
     margin: 5px;
+    border-radius: 3px;
 }
 
 *::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, .25);
+    border-radius: 3px;
 }
 
 *::-webkit-scrollbar-corner,

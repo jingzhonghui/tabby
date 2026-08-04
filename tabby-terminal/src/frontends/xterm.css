@@ -7,10 +7,13 @@
 
 .xterm-viewport::-webkit-scrollbar {
     background: rgba(0, 0, 0, .125);
+    width: 5px;
+    border-radius: 3px;
 }
 
 .xterm-viewport::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, .25);
+    border-radius: 3px;
 }
 
 .xterm-decoration-overview-ruler {
