@@ -1,4 +1,4 @@
-terminal-toolbar([tab]='this')
+terminal-toolbar([tab]='this', [style.right.px]='monitorPanelPinned && sshSession ? monitorWidth + 4 : 0')
     .me-auto
 
     .me-2(
@@ -24,7 +24,11 @@ terminal-toolbar([tab]='this')
         i.far.fa-folder-open
         span SFTP
 
-    button.btn.btn-sm.btn-link.me-2((click)='openMonitor()', *ngIf='session && session.open')
+    button.btn.btn-sm.btn-link.me-2(
+        (click)='monitorPanelPinned = !monitorPanelPinned',
+        *ngIf='session && session.open',
+        [class.text-primary]='monitorPanelPinned'
+    )
         i.fas.fa-chart-line
         span 监控
 
@@ -44,16 +48,21 @@ sftp-panel.bg-dark(
     (click)='$event.stopPropagation()',
     [session]='sshSession!',
     [cwdDetectionAvailable]='session?.supportsWorkingDirectory() ?? false',
+    [style.right.px]='monitorPanelPinned && sshSession ? monitorWidth + 4 : 0',
     (closed)='sftpPanelVisible = false'
 )
 
+.monitor-resize-handle(
+    *ngIf='monitorPanelPinned && sshSession',
+    (mousedown)='onMonitorResizeStart($event)'
+)
+
 server-monitor-panel.bg-dark(
-    @panelSlide,
-    [@.disabled]='!config.store.accessibility.animations',
-    *ngIf='monitorPanelVisible && sshSession',
+    *ngIf='monitorPanelPinned && sshSession',
+    [style.width.px]='monitorWidth',
     (click)='$event.stopPropagation()',
     [session]='sshSession!',
-    (closed)='monitorPanelVisible = false'
+    (closed)='monitorPanelPinned = false'
 )
 
 keyboard-interactive-auth-panel.bg-dark(

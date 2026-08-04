@@ -1,7 +1,7 @@
 import * as russh from 'russh'
 import { marker as _ } from '@biesbjerg/ngx-translate-extract-marker'
 import colors from 'ansi-colors'
-import { Component, Injector, HostListener, ViewChild } from '@angular/core'
+import { Component, Injector, HostListener, HostBinding, ViewChild } from '@angular/core'
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
 import { Platform, ProfilesService } from 'tabby-core'
 import { BaseTerminalTabComponent, ConnectableTerminalTabComponent } from 'tabby-terminal'
@@ -31,6 +31,9 @@ export class SSHTabComponent extends ConnectableTerminalTabComponent<SSHProfile>
     session: SSHShellSession|null = null
     sftpPanelVisible = false
     monitorPanelVisible = false
+    monitorPanelPinned = true
+    @HostBinding('class.monitor-pinned') get isMonitorPinned (): boolean { return this.monitorPanelPinned && !!this.sshSession }
+    monitorWidth = 340
     sftpPath = '/'
     enableToolbar = true
     activeKIPrompt: KeyboardInteractivePrompt|null = null
@@ -299,15 +302,31 @@ export class SSHTabComponent extends ConnectableTerminalTabComponent<SSHProfile>
     }
 
     async openMonitor (): Promise<void> {
-        setTimeout(() => {
-            this.monitorPanelVisible = true
-        }, 100)
+        this.monitorPanelPinned = true
+    }
+
+    onMonitorResizeStart (event: MouseEvent): void {
+        event.preventDefault()
+        const startX = event.pageX
+        const startWidth = this.monitorWidth
+
+        const onMove = (e: MouseEvent) => {
+            const diff = e.pageX - startX
+            this.monitorWidth = Math.max(280, Math.min(500, startWidth - diff))
+        }
+
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove)
+            document.removeEventListener('mouseup', onUp)
+        }
+
+        document.addEventListener('mousemove', onMove)
+        document.addEventListener('mouseup', onUp)
     }
 
     @HostListener('click')
     onClick (): void {
         this.sftpPanelVisible = false
-        this.monitorPanelVisible = false
     }
 
     protected isSessionExplicitlyTerminated (): boolean {

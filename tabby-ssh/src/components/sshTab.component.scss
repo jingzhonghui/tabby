@@ -1,3 +1,30 @@
+:host.monitor-pinned {
+    flex-direction: row;
+
+    > .content {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    > sftp-panel {
+        width: auto;
+        left: 0;
+    }
+}
+
+.monitor-resize-handle {
+    width: 4px;
+    cursor: col-resize;
+    background: var(--theme-bg-less-2);
+    flex: none;
+    transition: background 0.15s;
+    z-index: 6;
+
+    &:hover {
+        background: var(--theme-primary);
+    }
+}
+
 sftp-panel {
     position: absolute;
     height: 80%;
@@ -7,9 +34,6 @@ sftp-panel {
 }
 
 server-monitor-panel {
-    position: absolute;
-    height: 80%;
-    width: 100%;
-    bottom: 0;
+    flex: none;
     z-index: 5;
 }

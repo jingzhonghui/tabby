@@ -3,10 +3,9 @@
     flex-direction: column;
     background: var(--theme-bg-more);
     color: var(--theme-fg);
-    height: 320px;
-    min-height: 280px;
-    max-height: 450px;
-    border-top: 1px solid var(--theme-bg-less-2);
+    height: 100%;
+    min-height: 0;
+    max-height: none;
 
     > .header {
         padding: 8px 15px;
@@ -38,18 +37,20 @@
 .stats-row {
     display: flex;
     gap: 12px;
-    flex-wrap: wrap;
+    flex-direction: column;
 
     .stat-card {
-        flex: 1 1 0;
-        min-width: 200px;
+        flex: none;
+        width: 100%;
+        min-width: 0;
         padding: 10px 12px;
         background: var(--theme-bg-less);
         border-radius: 6px;
 
         &.wide {
-            flex: 1 1 45%;
-            min-width: 280px;
+            flex: none;
+            width: 100%;
+            min-width: 0;
         }
     }
 }
