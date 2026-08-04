@@ -874,6 +874,19 @@ export class SplitTabComponent extends BaseTabComponent implements AfterViewInit
         this.root.equalize()
     }
 
+    get displayTitle (): string {
+        if (this.customTitle || this.disableDynamicTitle) {
+            return super.displayTitle
+        }
+        const titles = [
+            this.getFocusedTab()?.displayTitle,
+            ...this.getAllTabs()
+                .filter(x => x !== this.getFocusedTab())
+                .map(x => x.displayTitle),
+        ]
+        return [...new Set(titles)].join(' | ')
+    }
+
     private updateTitle (): void {
         if (this.disableDynamicTitle) {
             return

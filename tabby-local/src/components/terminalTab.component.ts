@@ -5,6 +5,25 @@ import { BaseTerminalTabComponent } from 'tabby-terminal'
 import { LocalProfile, SessionOptions, UACService } from '../api'
 import { Session } from '../session'
 
+function shortenAbsolutePathTitle (title: string): string {
+    const isWindowsPath = /^[a-zA-Z]:[\\/]/.test(title)
+    const isUNCPath = /^\\\\[^\\/]+\\[^\\/]+/.test(title)
+    const isUnixPath = /^\/(?!\/)/.test(title)
+
+    if (!isWindowsPath && !isUNCPath && !isUnixPath) {
+        return title
+    }
+    if ((isWindowsPath || isUNCPath) && /[<>:"|?*]/.test(title.slice(isWindowsPath ? 2 : 0))) {
+        return title
+    }
+    if (title === '/' || /^[a-zA-Z]:[\\/]$/.test(title)) {
+        return title
+    }
+
+    const trimmed = title.replace(/[\\/]+$/, '')
+    return trimmed.split(/[\\/]/).pop() ?? title
+}
+
 /** @hidden */
 @Component({
     selector: 'terminalTab',
@@ -15,6 +34,15 @@ import { Session } from '../session'
 export class TerminalTabComponent extends BaseTerminalTabComponent<LocalProfile> {
     @Input() sessionOptions: SessionOptions // Deprecated
     session: Session|null = null
+    private dynamicTitle: string|null = null
+
+    get displayTitle (): string {
+        const title = super.displayTitle
+        if (this.customTitle || title !== this.dynamicTitle) {
+            return title
+        }
+        return shortenAbsolutePathTitle(title)
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-useless-constructor
     constructor (
@@ -52,6 +80,11 @@ export class TerminalTabComponent extends BaseTerminalTabComponent<LocalProfile>
         this.initializeSession(this.size.columns, this.size.rows)
         this.savedStateIsLive = this.profile.options.restoreFromPTYID === this.session?.getID()
         super.onFrontendReady()
+    }
+
+    protected setDynamicTitle (title: string): void {
+        this.dynamicTitle = title
+        super.setDynamicTitle(title)
     }
 
     initializeSession (columns: number, rows: number): void {

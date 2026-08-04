@@ -39,6 +39,11 @@ export abstract class BaseTabComponent extends BaseComponent {
     customTitle: string
 
     /**
+     * Title displayed in the tab header
+     */
+    get displayTitle (): string { return this.customTitle ? this.customTitle : this.title }
+
+    /**
      * Last tab activity state
      */
     hasActivity = false

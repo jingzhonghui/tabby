@@ -676,6 +676,10 @@ export class BaseTerminalTabComponent<P extends BaseTerminalProfile> extends Bas
         }
     }
 
+    protected setDynamicTitle (title: string): void {
+        this.setTitle(title)
+    }
+
     protected attachTermContainerHandlers (): void {
         this.detachTermContainerHandlers()
 
@@ -691,7 +695,7 @@ export class BaseTerminalTabComponent<P extends BaseTerminalProfile> extends Bas
 
         this.termContainerSubscriptions.subscribe(this.frontend.title$, title => this.zone.run(() => {
             if (!this.disableDynamicTitle) {
-                this.setTitle(title)
+                this.setDynamicTitle(title)
             }
         }))
 
