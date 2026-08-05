@@ -22,6 +22,8 @@ export { PromptModalComponent } from '../components/promptModal.component'
 export * from './commands'
 
 export { AppService } from '../services/app.service'
+export { ContextMenuService } from '../services/contextMenu.service'
+export { ContextMenuComponent } from '../components/contextMenu.component'
 export { ConfigService, configMerge, ConfigProxy, ProxifiedConfig, FullyDefined } from '../services/config.service'
 export { DockingService, Screen } from '../services/docking.service'
 export { Logger, ConsoleLogger, LogService } from '../services/log.service'

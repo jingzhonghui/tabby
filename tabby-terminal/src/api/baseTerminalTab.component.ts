@@ -3,7 +3,7 @@ import { Spinner } from 'cli-spinner'
 import colors from 'ansi-colors'
 import { NgZone, OnInit, OnDestroy, Injector, ViewChild, HostBinding, Input, ElementRef, InjectFlags, Component } from '@angular/core'
 import { trigger, transition, style, animate, AnimationTriggerMetadata } from '@angular/animations'
-import { AppService, ConfigService, BaseTabComponent, HostAppService, HotkeysService, NotificationsService, Platform, LogService, Logger, TabContextMenuItemProvider, SplitTabComponent, SubscriptionContainer, MenuItemOptions, PlatformService, HostWindowService, ResettableTimeout, TranslateService, ThemesService, FullyDefined } from 'tabby-core'
+import { AppService, ConfigService, BaseTabComponent, HostAppService, HotkeysService, NotificationsService, Platform, LogService, Logger, TabContextMenuItemProvider, SplitTabComponent, SubscriptionContainer, MenuItemOptions, PlatformService, HostWindowService, ResettableTimeout, TranslateService, ThemesService, FullyDefined, ContextMenuService } from 'tabby-core'
 
 import { BaseSession } from '../session'
 
@@ -129,6 +129,7 @@ export class BaseTerminalTabComponent<P extends BaseTerminalProfile> extends Bas
     protected translate: TranslateService
     protected multifocus: MultifocusService
     protected themes: ThemesService
+    protected terminalContextMenu: ContextMenuService
     // Deps end
 
     protected logger: Logger
@@ -208,6 +209,7 @@ export class BaseTerminalTabComponent<P extends BaseTerminalProfile> extends Bas
         this.translate = injector.get(TranslateService)
         this.multifocus = injector.get(MultifocusService)
         this.themes = injector.get(ThemesService)
+        this.terminalContextMenu = injector.get(ContextMenuService)
 
         this.logger = this.log.create('baseTerminalTab')
         this.setTitle(this.translate.instant('Terminal'))
@@ -469,12 +471,27 @@ export class BaseTerminalTabComponent<P extends BaseTerminalProfile> extends Bas
     }
 
     async buildContextMenu (): Promise<MenuItemOptions[]> {
-        let items: MenuItemOptions[] = []
-        for (const section of await Promise.all(this.contextMenuProviders.map(x => x.getItems(this)))) {
-            items = items.concat(section)
-            items.push({ type: 'separator' })
+        const mainProviders = this.contextMenuProviders.filter(provider => provider.weight < 10)
+        const moreProviders = this.contextMenuProviders.filter(provider => provider.weight >= 10)
+        const sections = await Promise.all(mainProviders.map(x => x.getItems(this)))
+        const nonEmptySections = sections.filter(section => section.length)
+        const items = nonEmptySections.flatMap((section, index) => {
+            const separator: MenuItemOptions[] = index ? [{ type: 'separator' }] : []
+            return [...separator, ...section]
+        })
+        const moreItems = (await Promise.all(moreProviders.map(x => x.getItems(this))))
+            .filter(section => section.length)
+            .flatMap((section, index) => {
+                const separator: MenuItemOptions[] = index ? [{ type: 'separator' }] : []
+                return [...separator, ...section]
+            })
+        if (moreItems.length) {
+            items.push({
+                label: this.translate.instant('More'),
+                type: 'submenu',
+                submenu: moreItems,
+            })
         }
-        items.splice(items.length - 1, 1)
         return items
     }
 
@@ -612,6 +629,7 @@ export class BaseTerminalTabComponent<P extends BaseTerminalProfile> extends Bas
     /** @hidden */
     ngOnDestroy (): void {
         super.ngOnDestroy()
+        this.terminalContextMenu?.close()
         this.stopSpinner()
     }
 
@@ -649,7 +667,7 @@ export class BaseTerminalTabComponent<P extends BaseTerminalProfile> extends Bas
         event.stopPropagation()
         this.rightMouseDownTime = Date.now()
         if (this.config.store.terminal.rightClick === 'menu') {
-            this.platform.popupContextMenu(await this.buildContextMenu(), event)
+            this.terminalContextMenu?.open(await this.buildContextMenu(), event)
         }
     }
 
@@ -671,7 +689,7 @@ export class BaseTerminalTabComponent<P extends BaseTerminalProfile> extends Bas
                     }
                 }
             } else {
-                this.platform.popupContextMenu(await this.buildContextMenu(), event)
+                this.terminalContextMenu?.open(await this.buildContextMenu(), event)
             }
         }
     }

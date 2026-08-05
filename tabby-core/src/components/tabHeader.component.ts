@@ -10,7 +10,7 @@ import { HostAppService, Platform } from '../api/hostApp'
 import { ConfigService } from '../services/config.service'
 import { BaseComponent } from './base.component'
 import { MenuItemOptions } from '../api/menu'
-import { PlatformService } from '../api/platform'
+import { ContextMenuService } from '../services/contextMenu.service'
 
 /** @hidden */
 @Component({
@@ -30,7 +30,7 @@ export class TabHeaderComponent extends BaseComponent {
         public config: ConfigService,
         public hostApp: HostAppService,
         private hotkeys: HotkeysService,
-        private platform: PlatformService,
+        private contextMenu: ContextMenuService,
         private zone: NgZone,
         @Optional() @Inject(TabContextMenuItemProvider) protected contextMenuProviders: TabContextMenuItemProvider[],
     ) {
@@ -63,12 +63,16 @@ export class TabHeaderComponent extends BaseComponent {
     }
 
     async buildContextMenu (): Promise<MenuItemOptions[]> {
+        const sections = await Promise.all(this.contextMenuProviders.map(x => x.getItems(this.tab, true)))
+            .then(result => result.filter(section => section.length))
         let items: MenuItemOptions[] = []
-        // Top-level tab menu
-        for (const section of await Promise.all(this.contextMenuProviders.map(x => x.getItems(this.tab, true)))) {
-            items.push({ type: 'separator' })
+        sections.forEach((section, index) => {
+            if (index) {
+                items.push({ type: 'separator' })
+            }
             items = items.concat(section)
-        }
+        })
+
         if (this.tab instanceof SplitTabComponent) {
             const tab = this.tab.getFocusedTab()
             if (tab) {
@@ -76,13 +80,12 @@ export class TabHeaderComponent extends BaseComponent {
                     // eslint-disable-next-line @typescript-eslint/no-loop-func
                     section = section.filter(item => !items.some(ex => ex.label === item.label))
                     if (section.length) {
-                        items.push({ type: 'separator' })
-                        items = items.concat(section)
+                        items = [...items, { type: 'separator' }, ...section]
                     }
                 }
             }
         }
-        return items.slice(1)
+        return items
     }
 
     onTabDragStart (tab: BaseTabComponent) {
@@ -119,6 +122,7 @@ export class TabHeaderComponent extends BaseComponent {
 
     @HostListener('contextmenu', ['$event']) async onContextMenu ($event: MouseEvent) {
         $event.preventDefault()
-        this.platform.popupContextMenu(await this.buildContextMenu(), $event)
+        $event.stopPropagation()
+        this.contextMenu.open(await this.buildContextMenu(), $event)
     }
 }

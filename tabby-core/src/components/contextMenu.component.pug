@@ -1,0 +1,32 @@
+.menu-root(role='menu', tabindex='-1', (keydown)='onKeyDown($event)')
+    ng-container(*ngFor='let item of items; let index = index')
+        .menu-separator(*ngIf='item.type == "separator"', role='separator')
+        .menu-item-wrapper(*ngIf='item.type != "separator"')
+            button.menu-item(
+                type='button',
+                [attr.data-index]='index',
+                [attr.role]='roleFor(item)',
+                [disabled]='!isEnabled(item)',
+                [attr.aria-disabled]='!isEnabled(item)',
+                [attr.aria-checked]='item.type == "checkbox" || item.type == "radio" ? !!item.checked : null',
+                [attr.aria-haspopup]='item.submenu?.length ? "menu" : null',
+                [attr.aria-expanded]='item.submenu?.length ? openSubmenu === item : null',
+                (mouseenter)='showSubmenu(item, $event)',
+                (click)='activate(item)'
+            )
+                span.menu-marker
+                    i.fas.fa-check(*ngIf='(item.type == "checkbox" || item.type == "radio") && item.checked')
+                span.menu-label {{ item.label }}
+                span.menu-sublabel(*ngIf='item.sublabel') {{ item.sublabel }}
+                i.menu-arrow.fas.fa-angle-right(*ngIf='item.submenu?.length')
+
+            tabby-context-menu.submenu(
+                *ngIf='openSubmenu === item',
+                [class.opens-left]='submenuOpensLeft',
+                [style.top.px]='submenuOffset',
+                [items]='item.submenu!',
+                [nested]='true',
+                (action)='action.emit($event)',
+                (closeRequested)='closeRequested.emit()',
+                (backRequested)='openSubmenu = null'
+            )

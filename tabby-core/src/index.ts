@@ -32,6 +32,7 @@ import { WelcomeTabComponent } from './components/welcomeTab.component'
 import { TransfersMenuComponent } from './components/transfersMenu.component'
 import { ProfileIconComponent } from './components/profileIcon.component'
 import { ProfileTreeComponent } from './components/profileTree.component'
+import { ContextMenuComponent } from './components/contextMenu.component'
 
 import { AutofocusDirective } from './directives/autofocus.directive'
 import { AlwaysVisibleTypeaheadDirective } from './directives/alwaysVisibleTypeahead.directive'
@@ -134,6 +135,7 @@ const PROVIDERS = [
         CdkAutoDropGroup,
         ProfileIconComponent,
         ProfileTreeComponent,
+        ContextMenuComponent,
         TabbyFormatedDatePipe,
     ],
     exports: [
@@ -149,6 +151,7 @@ const PROVIDERS = [
         TranslateModule,
         CdkAutoDropGroup,
         ProfileIconComponent,
+        ContextMenuComponent,
         TabbyFormatedDatePipe,
     ],
 })

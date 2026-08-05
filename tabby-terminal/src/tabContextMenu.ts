@@ -21,27 +21,39 @@ export class CopyPasteContextMenu extends TabContextMenuItemProvider {
     }
 
     async getItems (tab: BaseTabComponent, tabHeader?: boolean): Promise<MenuItemOptions[]> {
-        if (tabHeader) {
+        if ((tabHeader ?? false) || !(tab instanceof BaseTerminalTabComponent)) {
             return []
         }
-        if (tab instanceof BaseTerminalTabComponent) {
-            return [
-                {
-                    label: this.translate.instant('Copy'),
-                    click: (): void => {
-                        setTimeout(() => {
-                            tab.frontend?.copySelection()
-                            this.notifications.notice(this.translate.instant('Copied'))
-                        })
-                    },
+        return [
+            {
+                label: this.translate.instant('Copy'),
+                enabled: !!tab.frontend?.getSelection(),
+                click: (): void => {
+                    setTimeout(() => {
+                        tab.frontend?.copySelection()
+                        this.notifications.notice(this.translate.instant('Copied'))
+                    })
                 },
-                {
-                    label: this.translate.instant('Paste'),
-                    click: () => tab.paste(),
+            },
+            {
+                label: this.translate.instant('Paste'),
+                click: () => tab.paste(),
+            },
+            {
+                label: this.translate.instant('Select all'),
+                click: () => tab.frontend?.selectAll(),
+            },
+            {
+                label: this.translate.instant('Clear terminal'),
+                click: () => tab.frontend?.clear(),
+            },
+            {
+                label: this.translate.instant('Search'),
+                click: () => {
+                    tab.showSearchPanel = true
                 },
-            ]
-        }
-        return []
+            },
+        ]
     }
 }
 
@@ -56,8 +68,12 @@ export class MiscContextMenu extends TabContextMenuItemProvider {
     ) { super() }
 
     async getItems (tab: BaseTabComponent): Promise<MenuItemOptions[]> {
+        if (!(tab instanceof BaseTerminalTabComponent)) {
+            return []
+        }
+
         const items: MenuItemOptions[] = []
-        if (tab instanceof BaseTerminalTabComponent && tab.enableToolbar && !tab.pinToolbar) {
+        if (tab.enableToolbar && !tab.pinToolbar) {
             items.push({
                 label: this.translate.instant('Show toolbar'),
                 click: () => {
@@ -65,7 +81,7 @@ export class MiscContextMenu extends TabContextMenuItemProvider {
                 },
             })
         }
-        if (tab instanceof BaseTerminalTabComponent && tab.session?.supportsWorkingDirectory()) {
+        if (tab.session?.supportsWorkingDirectory()) {
             items.push({
                 label: this.translate.instant('Copy current path'),
                 click: () => tab.copyCurrentPath(),
@@ -85,7 +101,11 @@ export class MiscContextMenu extends TabContextMenuItemProvider {
                 },
             })
         }
-        return items
+        return [{
+            label: this.translate.instant('Terminal'),
+            type: 'submenu',
+            submenu: items,
+        }]
     }
 }
 
@@ -100,10 +120,16 @@ export class ReconnectContextMenu extends TabContextMenuItemProvider {
     ) { super() }
 
     async getItems (tab: BaseTabComponent): Promise<MenuItemOptions[]> {
-        if (tab instanceof ConnectableTerminalTabComponent) {
-            return [
+        if (!(tab instanceof ConnectableTerminalTabComponent)) {
+            return []
+        }
+        return [{
+            label: this.translate.instant('Connection'),
+            type: 'submenu',
+            submenu: [
                 {
                     label: this.translate.instant('Disconnect'),
+                    enabled: !!tab.session?.open,
                     click: (): void => {
                         setTimeout(() => {
                             tab.disconnect()
@@ -120,11 +146,9 @@ export class ReconnectContextMenu extends TabContextMenuItemProvider {
                         })
                     },
                 },
-            ]
-        }
-        return []
+            ],
+        }]
     }
-
 }
 
 /** @hidden */
@@ -133,30 +157,33 @@ export class LegacyContextMenu extends TabContextMenuItemProvider {
     weight = 1
 
     constructor (
+        private translate: TranslateService,
         @Optional() @Inject(TerminalContextMenuItemProvider) protected contextMenuProviders: TerminalContextMenuItemProvider[]|null,
     ) {
         super()
     }
 
     async getItems (tab: BaseTabComponent): Promise<MenuItemOptions[]> {
-        if (!this.contextMenuProviders) {
+        if (!this.contextMenuProviders || !(tab instanceof BaseTerminalTabComponent)) {
             return []
         }
-        if (tab instanceof BaseTerminalTabComponent) {
-            let items: MenuItemOptions[] = []
-            for (const p of this.contextMenuProviders) {
-                items = items.concat(await p.getItems(tab))
-            }
-            return items
+        let items: MenuItemOptions[] = []
+        for (const p of this.contextMenuProviders) {
+            items = items.concat(await p.getItems(tab))
         }
-        return []
+        return items.length ? [{
+            label: this.translate.instant('Tools'),
+            type: 'submenu',
+            submenu: items,
+        }] : []
     }
-
 }
 
 /** @hidden */
 @Injectable()
 export class SaveAsProfileContextMenu extends TabContextMenuItemProvider {
+    weight = 2
+
     constructor (
         private config: ConfigService,
         private ngbModal: NgbModal,
@@ -167,51 +194,42 @@ export class SaveAsProfileContextMenu extends TabContextMenuItemProvider {
     }
 
     async getItems (tab: BaseTabComponent): Promise<MenuItemOptions[]> {
-        if (tab instanceof BaseTerminalTabComponent) {
-            return [
-                {
-                    label: this.translate.instant('Save as profile'),
-                    click: async () => {
-                        const modal = this.ngbModal.open(PromptModalComponent)
-                        modal.componentInstance.prompt = this.translate.instant('New profile name')
-                        modal.componentInstance.value = tab.profile.name
-                        const name = (await modal.result.catch(() => null))?.value
-                        if (!name) {
-                            return
-                        }
-
-                        const options = JSON.parse(JSON.stringify(tab.profile.options))
-
-                        const cwd = await tab.session?.getWorkingDirectory() ?? tab.profile.options.cwd
-                        if (cwd) {
-                            options.cwd = cwd
-                        }
-
-                        const profile: PartialProfile<Profile> = {
-                            type: tab.profile.type,
-                            name,
-                            options,
-                        }
-
-                        profile.id = `${profile.type}:custom:${slugify(name)}:${uuidv4()}`
-                        profile.group = tab.profile.group
-                        profile.icon = tab.profile.icon
-                        profile.color = tab.profile.color
-                        profile.disableDynamicTitle = tab.profile.disableDynamicTitle
-                        profile.behaviorOnSessionEnd = tab.profile.behaviorOnSessionEnd
-
-                        this.config.store.profiles = [
-                            ...this.config.store.profiles,
-                            profile,
-                        ]
-                        this.config.save()
-                        this.notifications.info(this.translate.instant('Saved'))
-                    },
-                },
-            ]
+        if (!(tab instanceof BaseTerminalTabComponent)) {
+            return []
         }
+        return [{
+            label: this.translate.instant('Save as profile'),
+            click: async () => {
+                const modal = this.ngbModal.open(PromptModalComponent)
+                modal.componentInstance.prompt = this.translate.instant('New profile name')
+                modal.componentInstance.value = tab.profile.name
+                const name = (await modal.result.catch(() => null))?.value
+                if (!name) {
+                    return
+                }
 
-        return []
+                const options = JSON.parse(JSON.stringify(tab.profile.options))
+                const cwd = await tab.session?.getWorkingDirectory() ?? tab.profile.options.cwd
+                if (cwd) {
+                    options.cwd = cwd
+                }
+
+                const profile: PartialProfile<Profile> = {
+                    type: tab.profile.type,
+                    name,
+                    options,
+                }
+                profile.id = `${profile.type}:custom:${slugify(name)}:${uuidv4()}`
+                profile.group = tab.profile.group
+                profile.icon = tab.profile.icon
+                profile.color = tab.profile.color
+                profile.disableDynamicTitle = tab.profile.disableDynamicTitle
+                profile.behaviorOnSessionEnd = tab.profile.behaviorOnSessionEnd
+
+                this.config.store.profiles = [...this.config.store.profiles, profile]
+                this.config.save()
+                this.notifications.info(this.translate.instant('Saved'))
+            },
+        }]
     }
 }
-
