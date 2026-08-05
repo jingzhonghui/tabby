@@ -2568,6 +2568,23 @@ msgstr ""
 msgid "Zoom out"
 msgstr ""
 
+#: tabby-core/src/components/tabHeader.component.ts:118
+#: tabby-terminal/src/api/baseTerminalTab.component.ts:490
+msgid "More"
+msgstr ""
+
+#: tabby-terminal/src/tabContextMenu.ts:175
+msgid "Tools"
+msgstr ""
+
+#: tabby-electron/src/terminalContextMenu.ts:23
+msgid "Export to file"
+msgstr ""
+
+#: tabby-electron/src/terminalContextMenu.ts:39
+msgid "Saved to {path}"
+msgstr ""
+
 #: locale/tmp-html/tabby-ssh/src/components/sshPortForwardingConfig.component.html:43
 #: locale/tmp-html/tabby-ssh/src/components/sshPortForwardingConfig.component.html:5
 msgctxt "[Dynamic] port forwarding"

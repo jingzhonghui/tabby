@@ -11,6 +11,7 @@ import { ConfigService } from '../services/config.service'
 import { BaseComponent } from './base.component'
 import { MenuItemOptions } from '../api/menu'
 import { ContextMenuService } from '../services/contextMenu.service'
+import { TranslateService } from '@ngx-translate/core'
 
 /** @hidden */
 @Component({
@@ -31,6 +32,7 @@ export class TabHeaderComponent extends BaseComponent {
         public hostApp: HostAppService,
         private hotkeys: HotkeysService,
         private contextMenu: ContextMenuService,
+        private translate: TranslateService,
         private zone: NgZone,
         @Optional() @Inject(TabContextMenuItemProvider) protected contextMenuProviders: TabContextMenuItemProvider[],
     ) {
@@ -63,7 +65,10 @@ export class TabHeaderComponent extends BaseComponent {
     }
 
     async buildContextMenu (): Promise<MenuItemOptions[]> {
-        const sections = await Promise.all(this.contextMenuProviders.map(x => x.getItems(this.tab, true)))
+        const mainProviders = this.contextMenuProviders.filter(x => x.weight < 10)
+        const moreProviders = this.contextMenuProviders.filter(x => x.weight >= 10)
+
+        const sections = await Promise.all(mainProviders.map(x => x.getItems(this.tab, true)))
             .then(result => result.filter(section => section.length))
         let items: MenuItemOptions[] = []
         sections.forEach((section, index) => {
@@ -76,7 +81,7 @@ export class TabHeaderComponent extends BaseComponent {
         if (this.tab instanceof SplitTabComponent) {
             const tab = this.tab.getFocusedTab()
             if (tab) {
-                for (let section of await Promise.all(this.contextMenuProviders.map(x => x.getItems(tab, true)))) {
+                for (let section of await Promise.all(mainProviders.map(x => x.getItems(tab, true)))) {
                     // eslint-disable-next-line @typescript-eslint/no-loop-func
                     section = section.filter(item => !items.some(ex => ex.label === item.label))
                     if (section.length) {
@@ -85,6 +90,37 @@ export class TabHeaderComponent extends BaseComponent {
                 }
             }
         }
+
+        const moreSections = await Promise.all(moreProviders.map(x => x.getItems(this.tab, true)))
+        let moreItems: MenuItemOptions[] = []
+        moreSections.filter(section => section.length).forEach((section, index) => {
+            if (index) {
+                moreItems.push({ type: 'separator' })
+            }
+            moreItems = moreItems.concat(section)
+        })
+
+        if (this.tab instanceof SplitTabComponent) {
+            const tab = this.tab.getFocusedTab()
+            if (tab) {
+                for (let section of await Promise.all(moreProviders.map(x => x.getItems(tab, true)))) {
+                    // eslint-disable-next-line @typescript-eslint/no-loop-func
+                    section = section.filter(item => !moreItems.some(ex => ex.label === item.label))
+                    if (section.length) {
+                        moreItems = [...moreItems, { type: 'separator' }, ...section]
+                    }
+                }
+            }
+        }
+
+        if (moreItems.length) {
+            items.push({
+                label: this.translate.instant('More'),
+                type: 'submenu',
+                submenu: moreItems,
+            })
+        }
+
         return items
     }
 

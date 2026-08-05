@@ -2635,6 +2635,23 @@ msgstr "永久启用"
 msgid "Cancel"
 msgstr "取消"
 
+#: tabby-core/src/components/tabHeader.component.ts:118
+#: tabby-terminal/src/api/baseTerminalTab.component.ts:490
+msgid "More"
+msgstr "更多"
+
+#: tabby-terminal/src/tabContextMenu.ts:175
+msgid "Tools"
+msgstr "工具"
+
+#: tabby-electron/src/terminalContextMenu.ts:23
+msgid "Export to file"
+msgstr "导出到文件"
+
+#: tabby-electron/src/terminalContextMenu.ts:39
+msgid "Saved to {path}"
+msgstr "已保存到 {path}"
+
 #: tabby-ssh/src/components/sshTab.component.ts
 msgid "Could not configure remote directory synchronization"
 msgstr "无法配置远程目录同步"
