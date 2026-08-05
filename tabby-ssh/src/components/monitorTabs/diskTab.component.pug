@@ -1,0 +1,56 @@
+.disk-container
+  .loading-state(*ngIf='loading')
+    i.fas.fa-circle-notch.fa-spin
+    span 正在加载磁盘信息...
+
+  .alert.alert-danger(*ngIf='error')
+    i.fas.fa-exclamation-triangle.me-2
+    | {{error}}
+
+  .disk-summary(*ngIf='!loading && !error')
+    .metric-card
+      .metric-label
+        i.fas.fa-hdd
+        span 总容量
+      .metric-value {{formatBytes(totalSize)}}
+
+    .metric-card
+      .metric-label
+        i.fas.fa-chart-line
+        span 总使用率
+      .metric-value {{totalUsagePercent}}%
+      .metric-sub
+        .progress
+          .progress-bar([class]='getProgressBarClass(totalUsagePercent)', [style.width.%]='totalUsagePercent')
+
+    .metric-card
+      .metric-label
+        i.fas.fa-check-circle
+        span 已用空间
+      .metric-value {{formatBytes(totalUsed)}}
+
+    .metric-card
+      .metric-label
+        i.fas.fa-database
+        span 可用空间
+      .metric-value {{formatBytes(totalAvailable)}}
+
+  .disk-list-section(*ngIf='!loading && !error && disks.length > 0')
+    .section-title
+      i.fas.fa-list-ol
+      span 磁盘分区详情
+    .disk-list-scroll
+      .disk-list
+        .disk-card(*ngFor='let disk of disks')
+          .disk-header
+            .disk-info
+              span.disk-mount {{disk.mountedOn}}
+              span.disk-fs {{disk.filesystem}}
+            span.disk-percent {{disk.usagePercent}}%
+          .disk-bar
+            .progress
+              .progress-bar([class]='getProgressBarClass(disk.usagePercent)', [style.width.%]='disk.usagePercent')
+          .disk-stats
+            span 已用: {{formatBytes(disk.used)}}
+            span 总共: {{formatBytes(disk.size)}}
+            span 可用: {{formatBytes(disk.available)}}

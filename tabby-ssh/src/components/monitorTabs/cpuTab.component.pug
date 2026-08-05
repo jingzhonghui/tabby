@@ -1,0 +1,74 @@
+.cpu-container
+  .loading-state(*ngIf='loading')
+    i.fas.fa-circle-notch.fa-spin
+    span 正在加载CPU信息...
+
+  .alert.alert-danger(*ngIf='error')
+    i.fas.fa-exclamation-triangle.me-2
+    | {{error}}
+
+  .cpu-metrics(*ngIf='!loading && !error')
+    .metric-card
+      .metric-label
+        i.fas.fa-microchip
+        span CPU核心数
+      .metric-value {{cores}} 核
+
+    .metric-card
+      .metric-label
+        i.fas.fa-chart-line
+        span 总负载
+      .metric-value {{usagePercent}}%
+      .metric-sub
+        .progress
+          .progress-bar([class]='getProgressBarClass(usagePercent)', [style.width.%]='usagePercent')
+
+    .metric-card
+      .metric-label
+        i.fas.fa-tachometer-alt
+        span 负载均值
+      .metric-value {{loadAverage[1]}}
+      .metric-sub 5分钟平均
+
+    .metric-card(*ngIf='temperature')
+      .metric-label
+        i.fas.fa-thermometer-half
+        span CPU温度
+      .metric-value {{temperature}}
+
+    .metric-card
+      .metric-label
+        i.fas.fa-tasks
+        span 进程数
+      .metric-value {{totalProcesses}}
+      .metric-sub 运行中 {{userProcesses}} | 睡眠中 {{systemProcesses}}
+
+  .chart-section(*ngIf='!loading && !error')
+    .chart-title
+      i.fas.fa-chart-area
+      span 负载趋势 (60秒)
+    canvas.chart-canvas(#trendCanvas)
+
+  .process-section(*ngIf='!loading && !error && topProcesses.length > 0')
+    .section-title
+      i.fas.fa-list-ol
+      span CPU占用排行
+    .process-list-scroll
+      .process-list
+        .process-card(*ngFor='let proc of topProcesses')
+          button.kill-btn((click)='killProcess(proc.pid)', title='终止进程')
+            i.fas.fa-times
+          .process-main
+            .process-id
+              span.pid {{proc.pid}}
+              span.command {{proc.command}}
+            .process-metrics
+              .metric
+                span.value {{proc.cpu}}%
+                span.label CPU
+              .metric
+                span.value {{proc.mem}}%
+                span.label MEM
+          .process-sub
+            span.user {{proc.user}}
+            span.cmd {{proc.command}}

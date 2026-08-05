@@ -1,0 +1,66 @@
+.network-container
+  .loading-state(*ngIf='loading')
+    i.fas.fa-circle-notch.fa-spin
+    span 正在加载网络信息...
+
+  .alert.alert-danger(*ngIf='error')
+    i.fas.fa-exclamation-triangle.me-2
+    | {{error}}
+
+  .network-metrics(*ngIf='!loading && !error')
+    .metric-card
+      .metric-label
+        i.fas.fa-arrow-down
+        span 接收速度
+      .metric-value {{formatBytesPerSecond(totalRxSpeed)}}
+      .metric-sub 总计
+
+    .metric-card
+      .metric-label
+        i.fas.fa-arrow-up
+        span 发送速度
+      .metric-value {{formatBytesPerSecond(totalTxSpeed)}}
+      .metric-sub 总计
+
+    .metric-card
+      .metric-label
+        i.fas.fa-download
+        span 接收总量
+      .metric-value {{formatBytes(totalRxBytes)}}
+
+    .metric-card
+      .metric-label
+        i.fas.fa-upload
+        span 发送总量
+      .metric-value {{formatBytes(totalTxBytes)}}
+
+  .chart-section(*ngIf='!loading && !error')
+    .chart-title
+      i.fas.fa-chart-area
+      span 网络流量趋势 (60秒)
+    canvas.chart-canvas(#trendCanvas)
+
+  .interface-section(*ngIf='!loading && !error && interfaces.length > 0')
+    .section-title
+      i.fas.fa-network-wired
+      span 网络接口详情
+    .interface-list-scroll
+      .interface-list
+        .interface-card(*ngFor='let iface of interfaces')
+          .interface-header
+            .interface-name
+              i.fas.fa-ethernet
+              | {{iface.name}}
+          .interface-stats
+            .stat
+              .stat-label 接收速度
+              .stat-value {{formatBytesPerSecond(iface.rxSpeed)}}
+            .stat
+              .stat-label 发送速度
+              .stat-value {{formatBytesPerSecond(iface.txSpeed)}}
+            .stat
+              .stat-label 接收包数
+              .stat-value {{iface.rxPackets}}
+            .stat
+              .stat-label 发送包数
+              .stat-value {{iface.txPackets}}

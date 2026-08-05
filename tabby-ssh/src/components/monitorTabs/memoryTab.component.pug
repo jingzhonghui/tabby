@@ -1,0 +1,68 @@
+.memory-container
+  .loading-state(*ngIf='loading')
+    i.fas.fa-circle-notch.fa-spin
+    span 正在加载内存信息...
+
+  .alert.alert-danger(*ngIf='error')
+    i.fas.fa-exclamation-triangle.me-2
+    | {{error}}
+
+  .memory-metrics(*ngIf='!loading && !error')
+    .metric-card
+      .metric-label
+        i.fas.fa-memory
+        span 总内存
+      .metric-value {{formatBytes(total)}}
+
+    .metric-card
+      .metric-label
+        i.fas.fa-chart-line
+        span 使用率
+      .metric-value {{usagePercent}}%
+      .metric-sub
+        .progress
+          .progress-bar([class]='getProgressBarClass(usagePercent)', [style.width.%]='usagePercent')
+
+    .metric-card
+      .metric-label
+        i.fas.fa-check-circle
+        span 可用内存
+      .metric-value {{formatBytes(available)}}
+      .metric-sub 已用 {{formatBytes(used)}}
+
+    .metric-card
+      .metric-label
+        i.fas.fa-database
+        span 缓存
+      .metric-value {{formatBytes(cached)}}
+      .metric-sub Buffers {{formatBytes(buffers)}}
+
+  .chart-section(*ngIf='!loading && !error')
+    .chart-title
+      i.fas.fa-chart-area
+      span 内存使用趋势 (60秒)
+    canvas.chart-canvas(#trendCanvas)
+
+  .process-section(*ngIf='!loading && !error && topProcesses.length > 0')
+    .section-title
+      i.fas.fa-list-ol
+      span 内存占用排行
+    .process-list-scroll
+      .process-list
+        .process-card(*ngFor='let proc of topProcesses')
+          button.kill-btn((click)='killProcess(proc.pid)', title='终止进程')
+            i.fas.fa-times
+          .process-main
+            .process-id
+              span.pid {{proc.pid}}
+              span.command {{proc.command}}
+            .process-metrics
+              .metric
+                span.value {{proc.mem}}%
+                span.label MEM
+              .metric
+                span.value {{proc.cpu}}%
+                span.label CPU
+          .process-sub
+            span.user {{proc.user}}
+            span.cmd {{proc.command}}

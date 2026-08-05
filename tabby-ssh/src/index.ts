@@ -19,6 +19,11 @@ import { KeyboardInteractiveAuthComponent } from './components/keyboardInteracti
 import { HostKeyPromptModalComponent } from './components/hostKeyPromptModal.component'
 import { RemoteCWDIntegrationModalComponent } from './components/remoteCWDIntegrationModal.component'
 import { ServerMonitorPanelComponent } from './components/serverMonitorPanel.component'
+import { OverviewTabComponent } from './components/monitorTabs/overviewTab.component'
+import { CpuTabComponent } from './components/monitorTabs/cpuTab.component'
+import { MemoryTabComponent } from './components/monitorTabs/memoryTab.component'
+import { DiskTabComponent } from './components/monitorTabs/diskTab.component'
+import { NetworkTabComponent } from './components/monitorTabs/networkTab.component'
 
 import { SSHConfigProvider } from './config'
 import { SSHSettingsTabProvider } from './settings'
@@ -64,6 +69,11 @@ import { SSHCommandSuggestionProvider } from './services/sshCommandSuggestionPro
         SSHTabComponent,
         SFTPPanelComponent,
         ServerMonitorPanelComponent,
+        OverviewTabComponent,
+        CpuTabComponent,
+        MemoryTabComponent,
+        DiskTabComponent,
+        NetworkTabComponent,
         KeyboardInteractiveAuthComponent,
         HostKeyPromptModalComponent,
         RemoteCWDIntegrationModalComponent,
