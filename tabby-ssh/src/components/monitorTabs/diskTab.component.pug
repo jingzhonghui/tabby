@@ -35,12 +35,12 @@
         span 可用空间
       .metric-value {{formatBytes(totalAvailable)}}
 
-  .disk-list-section(*ngIf='!loading && !error && disks.length > 0')
+  .disk-list-section(*ngIf='!error')
     .section-title
       i.fas.fa-list-ol
       span 磁盘分区详情
     .disk-list-scroll
-      .disk-list
+      .disk-list(*ngIf='disks.length > 0')
         .disk-card(*ngFor='let disk of disks')
           .disk-header
             .disk-info
@@ -54,3 +54,7 @@
             span 已用: {{formatBytes(disk.used)}}
             span 总共: {{formatBytes(disk.size)}}
             span 可用: {{formatBytes(disk.available)}}
+      .empty-state(*ngIf='disks.length === 0')
+        i.fas.fa-circle-notch.fa-spin(*ngIf='loading')
+        i.fas.fa-inbox(*ngIf='!loading')
+        span {{loading ? '正在加载磁盘数据...' : '暂无磁盘数据'}}

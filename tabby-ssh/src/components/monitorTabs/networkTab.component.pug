@@ -1,8 +1,4 @@
 .network-container
-  .loading-state(*ngIf='loading')
-    i.fas.fa-circle-notch.fa-spin
-    span 正在加载网络信息...
-
   .alert.alert-danger(*ngIf='error')
     i.fas.fa-exclamation-triangle.me-2
     | {{error}}
@@ -34,19 +30,25 @@
         span 发送总量
       .metric-value {{formatBytes(totalTxBytes)}}
 
-  .chart-section(*ngIf='!loading && !error')
+  .chart-section(*ngIf='!error')
     .chart-title
       i.fas.fa-chart-area
       span 网络流量趋势 (60秒)
-    canvas.chart-canvas(#trendCanvas)
+    .chart-loading(*ngIf='history.length < 2')
+      i.fas.fa-circle-notch.fa-spin
+      span 正在加载趋势数据...
+    canvas.chart-canvas(#trendCanvas, *ngIf='history.length >= 2')
 
-  .interface-section(*ngIf='!loading && !error && interfaces.length > 0')
+  .interface-section(*ngIf='!error')
     .section-title
       i.fas.fa-network-wired
       span 网络接口详情
     .interface-list-scroll
-      .interface-list
-        .interface-card(*ngFor='let iface of interfaces')
+      .section-loading(*ngIf='interfaces.length === 0 && (fetching || fetchAttempts < 3)')
+        i.fas.fa-circle-notch.fa-spin
+        span 正在加载接口数据...
+      .interface-list(*ngIf='interfaces.length > 0')
+        .interface-card(*ngFor='let iface of interfaces; trackBy: trackByName')
           .interface-header
             .interface-name
               i.fas.fa-ethernet
@@ -64,3 +66,6 @@
             .stat
               .stat-label 发送包数
               .stat-value {{iface.txPackets}}
+      .empty-state(*ngIf='interfaces.length === 0 && !fetching && fetchAttempts >= 3')
+        i.fas.fa-inbox
+        span 暂无接口数据

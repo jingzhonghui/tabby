@@ -39,7 +39,7 @@ export class DiskTabComponent implements OnInit, OnDestroy {
         totalUsagePercent: number
     }|null = null
     private static cachedAt = 0
-    private static readonly CACHE_TTL = 30000
+    private static readonly CACHE_TTL = 300000
 
     private updateTimer: any
 
@@ -75,7 +75,12 @@ export class DiskTabComponent implements OnInit, OnDestroy {
 
         try {
             const output = await this.executeCommand(DiskTabComponent.DISK_COMMAND)
-            this.disks = this.parseDiskInfo(output)
+            const newDisks = this.parseDiskInfo(output)
+
+            // 只有获取到有效数据时才替换，防止偶发空输出导致界面闪烁
+            if (newDisks.length > 0) {
+                this.disks = newDisks
+            }
 
             // 计算总计
             this.totalSize = this.disks.reduce((sum, d) => sum + d.size, 0)

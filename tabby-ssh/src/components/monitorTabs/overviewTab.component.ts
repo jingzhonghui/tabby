@@ -78,7 +78,7 @@ export class OverviewTabComponent implements OnInit, OnDestroy {
     // 静态缓存
     private static cachedStats: ServerStats|null = null
     private static cachedAt = 0
-    private static readonly CACHE_TTL = 30000 // 30秒缓存有效期
+    private static readonly CACHE_TTL = 300000 // 30秒缓存有效期
 
     private static readonly MONITOR_COMMAND = [
         'echo "@@TABBY_MON_STAT@@"; cat /proc/stat',

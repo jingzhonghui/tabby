@@ -32,6 +32,7 @@ export class NetworkTabComponent implements OnInit, OnDestroy, AfterViewInit {
     loading = true
     error: string|null = null
     fetching = false
+    fetchAttempts = 0
 
     // 网络数据
     interfaces: NetworkInterface[] = []
@@ -54,7 +55,7 @@ export class NetworkTabComponent implements OnInit, OnDestroy, AfterViewInit {
         history: NetworkHistoryPoint[]
     }|null = null
     private static cachedAt = 0
-    private static readonly CACHE_TTL = 30000
+    private static readonly CACHE_TTL = 300000
 
     private updateTimer: any
     private previousNetworkStats: Map<string, { rxBytes: number, txBytes: number, timestamp: number }> = new Map()
@@ -95,10 +96,14 @@ export class NetworkTabComponent implements OnInit, OnDestroy, AfterViewInit {
     async fetchStats (): Promise<void> {
         if (this.fetching) return
         this.fetching = true
+        this.fetchAttempts++
 
         try {
             const output = await this.executeCommand(NetworkTabComponent.NETWORK_COMMAND)
-            this.interfaces = this.parseNetworkInfo(output)
+            const newInterfaces = this.parseNetworkInfo(output)
+            if (newInterfaces.length > 0) {
+                this.interfaces = newInterfaces
+            }
 
             // 计算总计
             this.totalRxSpeed = this.interfaces.reduce((sum, i) => sum + i.rxSpeed, 0)
@@ -118,8 +123,8 @@ export class NetworkTabComponent implements OnInit, OnDestroy, AfterViewInit {
                 this.history = this.history.slice(-this.maxHistoryPoints)
             }
 
-            // 重绘图表
-            this.drawChart()
+            // 重绘图表（延迟确保 canvas 已渲染）
+            setTimeout(() => this.drawChart(), 0)
 
             this.loading = false
             this.error = null
@@ -376,6 +381,10 @@ export class NetworkTabComponent implements OnInit, OnDestroy, AfterViewInit {
 
     formatBytesPerSecond (bytes: number): string {
         return `${this.formatBytes(bytes)}/s`
+    }
+
+    trackByName (_index: number, iface: NetworkInterface): string {
+        return iface.name
     }
 
     private async executeCommand (command: string): Promise<string> {

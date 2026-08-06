@@ -27,6 +27,7 @@ export class MemoryTabComponent implements OnInit, OnDestroy, AfterViewInit {
     loading = true
     error: string|null = null
     fetching = false
+    fetchAttempts = 0
 
     // 内存数据
     total = 0
@@ -57,7 +58,7 @@ export class MemoryTabComponent implements OnInit, OnDestroy, AfterViewInit {
         topProcesses: ProcessInfo[]
     }|null = null
     private static cachedAt = 0
-    private static readonly CACHE_TTL = 30000
+    private static readonly CACHE_TTL = 300000
 
     private updateTimer: any
 
@@ -103,6 +104,7 @@ export class MemoryTabComponent implements OnInit, OnDestroy, AfterViewInit {
     async fetchStats (): Promise<void> {
         if (this.fetching) return
         this.fetching = true
+        this.fetchAttempts++
 
         try {
             const output = await this.executeCommand(MemoryTabComponent.MEMORY_COMMAND)
@@ -129,12 +131,15 @@ export class MemoryTabComponent implements OnInit, OnDestroy, AfterViewInit {
                     this.history = this.history.slice(-this.maxHistoryPoints)
                 }
 
-                // 重绘图表
-                this.drawChart()
+                // 重绘图表（延迟确保 canvas 已渲染）
+                setTimeout(() => this.drawChart(), 0)
             }
 
             if (sections.top) {
-                this.topProcesses = this.parseTopProcesses(sections.top)
+                const newProcesses = this.parseTopProcesses(sections.top)
+                if (newProcesses.length > 0) {
+                    this.topProcesses = newProcesses
+                }
             }
 
             this.loading = false
@@ -408,6 +413,10 @@ export class MemoryTabComponent implements OnInit, OnDestroy, AfterViewInit {
         if (percent < 50) return 'bg-success'
         if (percent < 80) return 'bg-warning'
         return 'bg-danger'
+    }
+
+    trackByPid (_index: number, proc: ProcessInfo): number {
+        return proc.pid
     }
 
     private async executeCommand (command: string): Promise<string> {

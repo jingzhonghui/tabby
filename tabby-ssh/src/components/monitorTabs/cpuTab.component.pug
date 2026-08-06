@@ -1,8 +1,4 @@
 .cpu-container
-  .loading-state(*ngIf='loading')
-    i.fas.fa-circle-notch.fa-spin
-    span 正在加载CPU信息...
-
   .alert.alert-danger(*ngIf='error')
     i.fas.fa-exclamation-triangle.me-2
     | {{error}}
@@ -43,19 +39,25 @@
       .metric-value {{totalProcesses}}
       .metric-sub 运行中 {{userProcesses}} | 睡眠中 {{systemProcesses}}
 
-  .chart-section(*ngIf='!loading && !error')
+  .chart-section(*ngIf='!error')
     .chart-title
       i.fas.fa-chart-area
       span 负载趋势 (60秒)
-    canvas.chart-canvas(#trendCanvas)
+    .chart-loading(*ngIf='history.length < 2')
+      i.fas.fa-circle-notch.fa-spin
+      span 正在加载趋势数据...
+    canvas.chart-canvas(#trendCanvas, *ngIf='history.length >= 2')
 
-  .process-section(*ngIf='!loading && !error && topProcesses.length > 0')
+  .process-section(*ngIf='!error')
     .section-title
       i.fas.fa-list-ol
       span CPU占用排行
     .process-list-scroll
-      .process-list
-        .process-card(*ngFor='let proc of topProcesses')
+      .section-loading(*ngIf='topProcesses.length === 0 && (fetching || fetchAttempts < 3)')
+        i.fas.fa-circle-notch.fa-spin
+        span 正在加载进程数据...
+      .process-list(*ngIf='topProcesses.length > 0')
+        .process-card(*ngFor='let proc of topProcesses; trackBy: trackByPid')
           button.kill-btn((click)='killProcess(proc.pid)', title='终止进程')
             i.fas.fa-times
           .process-main
@@ -72,3 +74,6 @@
           .process-sub
             span.user {{proc.user}}
             span.cmd {{proc.command}}
+      .empty-state(*ngIf='topProcesses.length === 0 && !fetching && fetchAttempts >= 3')
+        i.fas.fa-inbox
+        span 暂无进程数据
