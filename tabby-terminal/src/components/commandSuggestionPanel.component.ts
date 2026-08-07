@@ -6,7 +6,6 @@ import { XTermFrontend } from '../frontends/xtermFrontend'
 
 const ITEM_HEIGHT = 28
 const PANEL_WIDTH = 380
-const DEBOUNCE_MS = 150
 const MAX_QUERY_LENGTH = 40
 
 /**
@@ -196,7 +195,7 @@ export class CommandSuggestionPanelComponent implements OnInit, OnDestroy {
             this.hide()
             return
         }
-        this.debounceTimer = setTimeout(() => this.fetch(query), DEBOUNCE_MS)
+        this.debounceTimer = setTimeout(() => this.fetch(query), 25)
     }
 
     private async fetch (query: string): Promise<void> {
@@ -260,4 +259,5 @@ export class CommandSuggestionPanelComponent implements OnInit, OnDestroy {
         this.selectedIndex = null
         this.cdr.detectChanges()
     }
+
 }

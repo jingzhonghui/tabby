@@ -8,6 +8,11 @@ import { BaseTerminalTabComponent } from './baseTerminalTab.component'
 export abstract class CommandSuggestionProvider {
     abstract supports (tab: BaseTerminalTabComponent<any>): boolean
 
+    /** Delay before querying this provider after the user stops typing. */
+    getDebounceMs (): number {
+        return 150
+    }
+
     /**
      * Return up to 5 history commands matching the query, best match first.
      * May return an empty array when no history is available.

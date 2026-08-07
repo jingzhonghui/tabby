@@ -18,7 +18,6 @@ export async function execRemoteCommand (session: SSHSession, command: string, t
     return new Promise((resolve, reject) => {
         let output = ''
         let closed = false
-
         const dataSub = channel.data$.subscribe({
             next: (data: Uint8Array) => {
                 output += Buffer.from(data).toString('utf-8')
