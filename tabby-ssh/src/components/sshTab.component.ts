@@ -183,7 +183,7 @@ export class SSHTabComponent extends ConnectableTerminalTabComponent<SSHProfile>
 
     private async initializeSessionMaybeMultiplex (multiplex = true): Promise<void> {
         this.sshSession = await this.setupOneSession(this.injector, this.profile, multiplex)
-        const session = new SSHShellSession(this.injector, this.sshSession, this.profile)
+        const session = new SSHShellSession(this.injector, this.sshSession, this.profile, () => this.size)
 
         this.setSession(session)
         this.attachSessionHandler(session.serviceMessage$, msg => {

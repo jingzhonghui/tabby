@@ -19,6 +19,7 @@ export class SSHShellSession extends BaseSession {
         injector: Injector,
         ssh: SSHSession,
         private profile: SSHProfile,
+        private getSessionSize?: () => { columns: number, rows: number },
     ) {
         super(injector.get(LogService).create(`ssh-shell-${profile.options.host}-${profile.options.port}`))
         this.ssh = ssh
@@ -41,7 +42,12 @@ export class SSHShellSession extends BaseSession {
         this.logger.debug('Opening shell')
 
         try {
-            this.shell = await this.ssh.openShellChannel({ x11: this.profile.options.x11 })
+            const sessionSize = this.getSessionSize?.()
+            this.shell = await this.ssh.openShellChannel({
+                x11: this.profile.options.x11,
+                columns: sessionSize?.columns,
+                rows: sessionSize?.rows,
+            })
         } catch (err) {
             if (err.toString().includes('Unable to request X11')) {
                 this.emitServiceMessage('    Make sure `xauth` is installed on the remote side')

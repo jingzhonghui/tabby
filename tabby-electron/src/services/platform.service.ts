@@ -11,7 +11,10 @@ import { ElectronHostWindow } from './hostWindow.service'
 import { ShellIntegrationService } from './shellIntegration.service'
 import { ElectronHostAppService } from './hostApp.service'
 import { configPath } from '../../../app/lib/config'
-const fontManager = require('fontmanager-redux') // eslint-disable-line
+let fontManager: any = null
+try {
+    fontManager = require('fontmanager-redux') // eslint-disable-line
+} catch { }
 
 /* eslint-disable block-scoped-var */
 

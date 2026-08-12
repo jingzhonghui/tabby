@@ -852,14 +852,14 @@ export class SSHSession {
         this.ssh.disconnect()
     }
 
-    async openShellChannel (options: { x11: boolean }): Promise<russh.Channel> {
+    async openShellChannel (options: { x11: boolean, columns?: number, rows?: number }): Promise<russh.Channel> {
         if (!(this.ssh instanceof russh.AuthenticatedSSHClient)) {
             throw new Error('Cannot open shell channel before auth')
         }
         const ch = await this.ssh.activateChannel(await this.ssh.openSessionChannel())
         await ch.requestPTY('xterm-256color', {
-            columns: 80,
-            rows: 24,
+            columns: options.columns ?? 80,
+            rows: options.rows ?? 24,
             pixHeight: 0,
             pixWidth: 0,
         })

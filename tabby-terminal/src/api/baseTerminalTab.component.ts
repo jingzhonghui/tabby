@@ -1,4 +1,4 @@
-import { Observable, Subject, first, auditTime, debounce, interval } from 'rxjs'
+import { Observable, Subject, first, auditTime, debounceTime, debounce, interval } from 'rxjs'
 import { Spinner } from 'cli-spinner'
 import colors from 'ansi-colors'
 import { NgZone, OnInit, OnDestroy, Injector, ViewChild, HostBinding, Input, ElementRef, InjectFlags, Component } from '@angular/core'
@@ -380,7 +380,7 @@ export class BaseTerminalTabComponent<P extends BaseTerminalProfile> extends Bas
             this.onFrontendReady()
         })
 
-        this.frontend.resize$.pipe(first()).subscribe(async ({ columns, rows }) => {
+        this.frontend.resize$.pipe(debounceTime(100), first()).subscribe(async ({ columns, rows }) => {
             this.size = { columns, rows }
             this.frontendReady.next()
             this.frontendReady.complete()
@@ -392,10 +392,6 @@ export class BaseTerminalTabComponent<P extends BaseTerminalProfile> extends Bas
                     this.logger.warn('Decorator attach() throws', e)
                 }
             })
-
-            setTimeout(() => {
-                this.session?.resize(columns, rows)
-            }, 1000)
 
             this.session?.releaseInitialDataBuffer()
             this.sessionChanged$.subscribe(() => {
