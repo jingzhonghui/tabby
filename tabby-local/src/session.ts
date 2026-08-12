@@ -72,6 +72,16 @@ export class Session extends BaseSession {
                 env = mergeEnv(env, { COMSPEC: this.bootstrapData.executable })
             }
 
+            env = mergeEnv(
+                Object.fromEntries(Object.entries(env).filter(([key]) =>
+                    !['columns', 'lines', 'term_session_id'].includes(key.toLowerCase()),
+                )),
+                {
+                    COLUMNS: String(options.width ?? 80),
+                    LINES: String(options.height ?? 30),
+                },
+            )
+
             delete env['']
 
             if (this.hostApp.platform === Platform.macOS && !process.env.LC_ALL) {

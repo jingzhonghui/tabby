@@ -83,6 +83,10 @@ export class CommandSuggestionPanelComponent implements OnInit, OnDestroy {
 
     /** Key interceptor: only consumes keys while the panel is visible */
     private onKeyEvent (event: KeyboardEvent): boolean {
+        if (this.tab.frontend instanceof XTermFrontend && this.tab.frontend.isAlternateScreenActive()) {
+            this.hide()
+            return true
+        }
         if (!this.visible) {
             return true
         }
@@ -219,7 +223,13 @@ export class CommandSuggestionPanelComponent implements OnInit, OnDestroy {
         }
         // Drop stale responses: a newer request was issued, or the user
         // kept typing / submitted the line while this one was in flight
-        if (seq !== this.requestSeq || this.shadow.trim() !== query) {
+        if (
+            seq !== this.requestSeq ||
+            this.shadow.trim() !== query ||
+            !(this.tab.frontend instanceof XTermFrontend) ||
+            this.tab.frontend.isAlternateScreenActive()
+        ) {
+            this.hide()
             return
         }
         if (results.length === 0) {
