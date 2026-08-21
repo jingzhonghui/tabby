@@ -68,6 +68,7 @@ export class OverviewTabComponent implements OnInit, OnDestroy {
     @Output() statsChange = new EventEmitter<ServerStats>()
 
     stats: ServerStats|null = null
+    latency: number|null = null
     loading = true
     error: string|null = null
     fetching = false
@@ -79,6 +80,10 @@ export class OverviewTabComponent implements OnInit, OnDestroy {
     private static cachedStats: ServerStats|null = null
     private static cachedAt = 0
     private static readonly CACHE_TTL = 300000 // 30秒缓存有效期
+
+    private static cachedLatency: number|null = null
+    private static cachedLatencyAt = 0
+    private static readonly LATENCY_CACHE_TTL = 5000
 
     private static readonly MONITOR_COMMAND = [
         'echo "@@TABBY_MON_STAT@@"; cat /proc/stat',
@@ -98,6 +103,12 @@ export class OverviewTabComponent implements OnInit, OnDestroy {
             this.statsChange.emit(this.stats)
         }
 
+        // 恢复RTT缓存
+        if (OverviewTabComponent.cachedLatency !== null &&
+            Date.now() - OverviewTabComponent.cachedLatencyAt < OverviewTabComponent.LATENCY_CACHE_TTL) {
+            this.latency = OverviewTabComponent.cachedLatency
+        }
+
         // 触发数据获取（后台刷新）
         await this.fetchStats()
         this.updateTimer = setInterval(() => this.fetchStats(), 3000)
@@ -114,7 +125,16 @@ export class OverviewTabComponent implements OnInit, OnDestroy {
         this.fetching = true
 
         try {
-            const output = await this.executeCommand(OverviewTabComponent.MONITOR_COMMAND)
+            const [rtt, output] = await Promise.all([
+                this.measureRTT(),
+                this.executeCommand(OverviewTabComponent.MONITOR_COMMAND),
+            ])
+            if (rtt !== null) {
+                this.latency = rtt
+                OverviewTabComponent.cachedLatency = rtt
+                OverviewTabComponent.cachedLatencyAt = Date.now()
+            }
+
             const sections = this.parseSections(output)
             const prev = this.stats
 
@@ -434,6 +454,23 @@ export class OverviewTabComponent implements OnInit, OnDestroy {
 
     formatBytesPerSecond (bytes: number): string {
         return `${this.formatBytes(bytes)}/s`
+    }
+
+    private async measureRTT (): Promise<number|null> {
+        try {
+            const start = Date.now()
+            await this.executeCommand('echo ok')
+            return Date.now() - start
+        } catch {
+            return null
+        }
+    }
+
+    getLatencyClass (ms: number|null): string {
+        if (ms === null) return ''
+        if (ms < 100) return 'text-success'
+        if (ms < 300) return 'text-warning'
+        return 'text-danger'
     }
 
     getProgressBarClass (percent: number): string {

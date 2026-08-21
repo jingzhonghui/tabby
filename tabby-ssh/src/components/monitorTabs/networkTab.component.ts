@@ -40,6 +40,7 @@ export class NetworkTabComponent implements OnInit, OnDestroy, AfterViewInit {
     totalTxSpeed = 0
     totalRxBytes = 0
     totalTxBytes = 0
+    latency: number|null = null
 
     // 历史数据（60秒）
     history: NetworkHistoryPoint[] = []
@@ -52,6 +53,7 @@ export class NetworkTabComponent implements OnInit, OnDestroy, AfterViewInit {
         totalTxSpeed: number
         totalRxBytes: number
         totalTxBytes: number
+        latency: number|null
         history: NetworkHistoryPoint[]
     }|null = null
     private static cachedAt = 0
@@ -72,6 +74,7 @@ export class NetworkTabComponent implements OnInit, OnDestroy, AfterViewInit {
             this.totalTxSpeed = cache.totalTxSpeed
             this.totalRxBytes = cache.totalRxBytes
             this.totalTxBytes = cache.totalTxBytes
+            this.latency = cache.latency
             this.history = [...cache.history]
             this.loading = false
             // 延迟重绘图表
@@ -99,7 +102,14 @@ export class NetworkTabComponent implements OnInit, OnDestroy, AfterViewInit {
         this.fetchAttempts++
 
         try {
-            const output = await this.executeCommand(NetworkTabComponent.NETWORK_COMMAND)
+            const [rtt, output] = await Promise.all([
+                this.measureRTT(),
+                this.executeCommand(NetworkTabComponent.NETWORK_COMMAND),
+            ])
+            if (rtt !== null) {
+                this.latency = rtt
+            }
+
             const newInterfaces = this.parseNetworkInfo(output)
             if (newInterfaces.length > 0) {
                 this.interfaces = newInterfaces
@@ -136,6 +146,7 @@ export class NetworkTabComponent implements OnInit, OnDestroy, AfterViewInit {
                 totalTxSpeed: this.totalTxSpeed,
                 totalRxBytes: this.totalRxBytes,
                 totalTxBytes: this.totalTxBytes,
+                latency: this.latency,
                 history: [...this.history],
             }
             NetworkTabComponent.cachedAt = Date.now()
@@ -385,6 +396,23 @@ export class NetworkTabComponent implements OnInit, OnDestroy, AfterViewInit {
 
     trackByName (_index: number, iface: NetworkInterface): string {
         return iface.name
+    }
+
+    private async measureRTT (): Promise<number|null> {
+        try {
+            const start = Date.now()
+            await this.executeCommand('echo ok')
+            return Date.now() - start
+        } catch {
+            return null
+        }
+    }
+
+    getLatencyClass (ms: number|null): string {
+        if (ms === null) return ''
+        if (ms < 100) return 'text-success'
+        if (ms < 300) return 'text-warning'
+        return 'text-danger'
     }
 
     private async executeCommand (command: string): Promise<string> {

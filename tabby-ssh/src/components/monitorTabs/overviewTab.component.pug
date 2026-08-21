@@ -79,6 +79,9 @@
             .stat-header
                 i.fas.fa-network-wired.me-2
                 span 网络
+                .stat-value([class]='getLatencyClass(latency)')
+                    i.fas.fa-signal.me-1
+                    | {{ latency !== null ? latency + ' ms' : '--' }}
             .network-list
                 .network-item(*ngFor='let net of stats.network')
                     .network-name

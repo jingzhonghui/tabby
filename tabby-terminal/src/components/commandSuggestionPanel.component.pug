@@ -8,8 +8,7 @@
         [class.selected]='i === selectedIndex',
         [title]='item',
         [attr.aria-label]='item',
-        (mousedown)='$event.preventDefault(); accept(item)',
-        (mouseenter)='selectedIndex = i'
+        (mousedown)='$event.preventDefault(); accept(item)'
     )
         span.command {{item}}
     .suggestion-hint

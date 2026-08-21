@@ -30,6 +30,15 @@
         span 发送总量
       .metric-value {{formatBytes(totalTxBytes)}}
 
+    .metric-card
+      .metric-label
+        i.fas.fa-signal
+        span 网络延迟
+      .metric-value(
+        [class]='getLatencyClass(latency)'
+      ) {{ latency !== null ? latency + ' ms' : '--' }}
+      .metric-sub 客户端→服务器
+
   .chart-section(*ngIf='!error')
     .chart-title
       i.fas.fa-chart-area

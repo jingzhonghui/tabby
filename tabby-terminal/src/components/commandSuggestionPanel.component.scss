@@ -34,6 +34,10 @@
         background: var(--bs-primary);
         color: white;
     }
+
+    &:hover {
+        background: color-mix(in srgb, var(--theme-fg) 14%, var(--theme-bg-more));
+    }
 }
 
 .suggestion-hint {
