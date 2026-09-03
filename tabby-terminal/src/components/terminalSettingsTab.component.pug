@@ -75,8 +75,8 @@ div.mt-4
 
     .form-line
         .header
-            .title(translate) Command suggestions
-            .description(translate) Suggest matching history commands while typing (Tab to complete, Esc to dismiss)
+            .title(translate) History command suggestions
+            .description(translate) Suggest matching commands from history while typing (Tab to complete, Esc to dismiss)
         toggle(
             [(ngModel)]='config.store.terminal.commandSuggestion',
             (ngModelChange)='config.save()',

@@ -39,6 +39,7 @@ export class CommandSuggestionPanelComponent implements OnInit, OnDestroy {
     private subscriptions: Subscription[] = []
     private debounceTimer: any = null
     private requestSeq = 0
+    private lastShownQuery: string|null = null
 
     constructor (
         @Optional() @Inject(CommandSuggestionProvider) private providers: CommandSuggestionProvider[]|null,
@@ -129,6 +130,8 @@ export class CommandSuggestionPanelComponent implements OnInit, OnDestroy {
 
     private onInput (data: Buffer): void {
         const text = data.toString('utf-8')
+        // Invalidate an in-flight lookup before processing the new line state.
+        this.requestSeq++
         if (text.length > 0) {
             this.selectedIndex = null
         }
@@ -199,6 +202,13 @@ export class CommandSuggestionPanelComponent implements OnInit, OnDestroy {
             this.hide()
             return
         }
+        if (this.visible && this.lastShownQuery === query) {
+            // The panel already shows fresh results for exactly this query
+            // (e.g. the user typed "cd" then a trailing space). Re-querying would
+            // issue a redundant remote lookup that may transiently return empty
+            // and hide the correct candidates, so keep the current panel up.
+            return
+        }
         this.debounceTimer = setTimeout(() => this.fetch(query), 25)
     }
 
@@ -229,7 +239,8 @@ export class CommandSuggestionPanelComponent implements OnInit, OnDestroy {
             !(this.tab.frontend instanceof XTermFrontend) ||
             this.tab.frontend.isAlternateScreenActive()
         ) {
-            this.hide()
+            // A stale response must not clear the debounce timer or hide a
+            // newer result that may already be visible.
             return
         }
         if (results.length === 0) {
@@ -238,6 +249,7 @@ export class CommandSuggestionPanelComponent implements OnInit, OnDestroy {
         }
         this.suggestions = results
         this.selectedIndex = null
+        this.lastShownQuery = query
         this.updatePosition()
         this.visible = true
         this.cdr.detectChanges()
@@ -267,6 +279,7 @@ export class CommandSuggestionPanelComponent implements OnInit, OnDestroy {
         this.visible = false
         this.suggestions = []
         this.selectedIndex = null
+        this.lastShownQuery = null
         this.cdr.detectChanges()
     }
 

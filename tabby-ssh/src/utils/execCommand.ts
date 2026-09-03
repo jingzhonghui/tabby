@@ -17,44 +17,70 @@ export async function execRemoteCommand (session: SSHSession, command: string, t
 
     return new Promise((resolve, reject) => {
         let output = ''
-        let closed = false
-        const dataSub = channel.data$.subscribe({
+        let settled = false
+        let flushTimer: any = null
+        let dataSub: any = null
+        let extDataSub: any = null
+        let closeSub: any = null
+        // Channel close may race the final stdout frames, so resolving on close
+        // alone can return an empty/truncated output. After the last data/close
+        // event we wait a short quiet window so any trailing frames are included.
+        const FLUSH_DELAY_MS = 15
+
+        const cleanup = () => {
+            dataSub?.unsubscribe()
+            extDataSub?.unsubscribe()
+            closeSub?.unsubscribe()
+        }
+
+        const finish = () => {
+            if (settled) {
+                return
+            }
+            settled = true
+            clearTimeout(flushTimer)
+            cleanup()
+            resolve(output)
+        }
+
+        const fail = (err: Error) => {
+            if (settled) {
+                return
+            }
+            settled = true
+            clearTimeout(flushTimer)
+            cleanup()
+            reject(err)
+        }
+
+        const armFlush = () => {
+            clearTimeout(flushTimer)
+            flushTimer = setTimeout(finish, FLUSH_DELAY_MS)
+        }
+
+        dataSub = channel.data$.subscribe({
             next: (data: Uint8Array) => {
-                output += Buffer.from(data).toString('utf-8')
-            },
-            error: (err: Error) => {
-                if (!closed) {
-                    closed = true
-                    reject(err)
+                if (settled) {
+                    return
                 }
+                output += Buffer.from(data).toString('utf-8')
+                armFlush()
             },
+            error: (err: Error) => fail(err),
         })
 
-        const extDataSub = channel.extendedData$.subscribe({
-            next: ([_type, _data]: [number, Uint8Array]) => {
+        extDataSub = channel.extendedData$.subscribe({
+            next: () => {
                 // Ignore stderr for these commands
             },
         })
 
-        const closeSub = channel.closed$.subscribe(() => {
-            if (closed) {
-                return
+        closeSub = channel.closed$.subscribe(() => {
+            if (!settled) {
+                armFlush()
             }
-            closed = true
-            dataSub.unsubscribe()
-            extDataSub.unsubscribe()
-            closeSub.unsubscribe()
-            resolve(output)
         })
 
-        setTimeout(() => {
-            if (!closed) {
-                closed = true
-                dataSub.unsubscribe()
-                extDataSub.unsubscribe()
-                closeSub.unsubscribe()
-                resolve(output)
-            }
-        }, timeoutMs)
+        setTimeout(finish, timeoutMs)
     })
 }

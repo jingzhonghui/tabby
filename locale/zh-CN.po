@@ -2596,12 +2596,12 @@ msgid "id.port-forwarding.dynamic"
 msgstr "动态端口转发"
 
 #: tabby-terminal/src/components/terminalSettingsTab.component.pug
-msgid "Command suggestions"
-msgstr "命令候选提示"
+msgid "History command suggestions"
+msgstr "历史命令候选提示"
 
 #: tabby-terminal/src/components/terminalSettingsTab.component.pug
-msgid "Suggest matching history commands while typing (Tab to complete, Esc to dismiss)"
-msgstr "输入命令时模糊匹配历史命令并提示（Tab 补全，Esc 关闭）"
+msgid "Suggest matching commands from history while typing (Tab to complete, Esc to dismiss)"
+msgstr "输入时提示匹配的历史命令（Tab 补全，Esc 关闭）"
 
 #: tabby-terminal/src/components/commandSuggestionPanel.component.pug
 msgid "select"
