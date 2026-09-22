@@ -14,16 +14,11 @@
 
             .mb-3
                 label(translate) Parent Group
-                input.form-control(
-                    type='text',
-                    alwaysVisibleTypeahead,
-                    placeholder='Ungrouped',
-                    [(ngModel)]='selectedParentGroup',
-                    [ngbTypeahead]='groupTypeahead',
-                    [inputFormatter]="groupFormatter",
-                    [resultFormatter]="groupFormatter",
-                    [editable]="false"
+                select.form-control(
+                    [(ngModel)]='parentSelection',
                 )
+                    option([ngValue]='""', translate) Ungrouped
+                    option(*ngFor='let group of groups', [ngValue]='group.id') {{ getGroupLabel(group) }}
 
             .mb-3
                 label(translate) Icon

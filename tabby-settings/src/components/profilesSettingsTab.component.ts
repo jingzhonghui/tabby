@@ -30,8 +30,17 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
     visibleProfiles: PartialProfile<Profile>[] = []
     selectedProfileCount = 0
     groupProfileCounts = new Map<string, number>()
+    selectedProfileIds = new Set<string>()
+    showHiddenProfiles = false
+    hiddenProfileCount = 0
+    batchDeleteConfirmMessage = ''
+    movableGroups: PartialProfileGroup<CollapsableProfileGroup>[] = []
+    moveTargetGroupId = ''
+    moveTargetCount = 0
     @ViewChild('advancedSettingsModal') advancedSettingsModal: TemplateRef<unknown>
     @ViewChild('deleteGroupConfirmModal') deleteGroupConfirmModal: TemplateRef<unknown>
+    @ViewChild('batchDeleteConfirmModal') batchDeleteConfirmModal: TemplateRef<unknown>
+    @ViewChild('moveGroupModal') moveGroupModal: TemplateRef<unknown>
 
     deleteGroupConfirmTitle = ''
     deleteGroupConfirmMessage = ''
@@ -66,7 +75,9 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
     }
 
     async refreshProfiles (): Promise<void> {
-        const allProfiles = (await this.profilesService.getProfiles()).map(profile => this.detachProfileFromHiddenGroup(profile))
+        const rawProfiles = (await this.profilesService.getProfiles()).map(profile => this.detachProfileFromHiddenGroup(profile))
+        this.hiddenProfileCount = rawProfiles.filter(x => this.isProfileBlacklisted(x)).length
+        const allProfiles = this.showHiddenProfiles ? rawProfiles : rawProfiles.filter(x => !this.isProfileBlacklisted(x))
         this.profiles = allProfiles.filter(x => !x.isTemplate)
         this.builtinProfiles = allProfiles.filter(x => x.isBuiltin && !x.isTemplate)
         this.templateProfiles = allProfiles.filter(x => x.isBuiltin && x.isTemplate)
@@ -272,6 +283,172 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
         }
     }
 
+    isSelected (profile: PartialProfile<Profile>): boolean {
+        return !!profile.id && this.selectedProfileIds.has(profile.id)
+    }
+
+    get checkedCount (): number {
+        return this.selectedProfileIds.size
+    }
+
+    get allVisibleSelected (): boolean {
+        return this.visibleProfiles.length > 0 && this.visibleProfiles.every(profile => this.isSelected(profile))
+    }
+
+    get someVisibleSelected (): boolean {
+        return this.selectedProfileIds.size > 0 && !this.allVisibleSelected
+    }
+
+    toggleProfileSelection (profile: PartialProfile<Profile>): void {
+        if (!profile.id) {
+            return
+        }
+        const selected = new Set(this.selectedProfileIds)
+        if (selected.has(profile.id)) {
+            selected.delete(profile.id)
+        } else {
+            selected.add(profile.id)
+        }
+        this.selectedProfileIds = selected
+    }
+
+    toggleSelectAllVisible (): void {
+        if (this.allVisibleSelected) {
+            this.clearSelection()
+            return
+        }
+        this.selectedProfileIds = new Set(
+            this.visibleProfiles.map(profile => profile.id).filter((id): id is string => !!id),
+        )
+    }
+
+    clearSelection (): void {
+        this.selectedProfileIds = new Set()
+    }
+
+    toggleShowHidden (): void {
+        this.showHiddenProfiles = !this.showHiddenProfiles
+        this.clearSelection()
+        this.refreshProfileGroups()
+        this.refreshProfiles()
+    }
+
+    async deleteSelectedProfiles (): Promise<void> {
+        const selectedProfiles = this.profiles.filter(profile => !!profile.id && this.selectedProfileIds.has(profile.id))
+        if (!selectedProfiles.length) {
+            return
+        }
+
+        const toDelete = selectedProfiles.filter(profile => !profile.isBuiltin)
+        const toHide = selectedProfiles.filter(profile => profile.isBuiltin)
+
+        const actions: string[] = []
+        if (toDelete.length) {
+            actions.push(`删除 ${toDelete.length} 个自定义主机（含已保存的密码/私钥）`)
+        }
+        if (toHide.length) {
+            actions.push(`隐藏 ${toHide.length} 个内置主机`)
+        }
+        this.batchDeleteConfirmMessage = `确定要${actions.join('、')}吗？此操作不可撤销。`
+
+        if (!await this.confirmBatchDeletion()) {
+            return
+        }
+
+        if (toDelete.length) {
+            const ids = new Set(toDelete.map(profile => profile.id).filter((id): id is string => !!id))
+            await this.profilesService.bulkDeleteProfiles(profile => !!profile.id && ids.has(profile.id))
+        }
+        if (toHide.length) {
+            const hidden = new Set([
+                ...this.config.store.profileBlacklist,
+                ...toHide.map(profile => profile.id).filter((id): id is string => !!id),
+            ])
+            this.config.store.profileBlacklist = [...hidden]
+        }
+
+        await this.config.save()
+        this.clearSelection()
+
+        const summary = [
+            toDelete.length ? `已删除 ${toDelete.length} 个配置` : '',
+            toHide.length ? `已隐藏 ${toHide.length} 个内置配置` : '',
+        ].filter(Boolean).join('，')
+        this.notifications.info(summary)
+    }
+
+    private async confirmBatchDeletion (): Promise<boolean> {
+        const modal = this.ngbModal.open(this.batchDeleteConfirmModal, {
+            centered: true,
+            ariaLabelledBy: 'batch-delete-confirm-title',
+        })
+        const result = await modal.result.catch(() => false)
+        return result === true
+    }
+
+    getGroupOptionLabel (group: PartialProfileGroup<CollapsableProfileGroup>): string {
+        const path = this.profilesService.resolveProfileGroupPath(group.id)
+        return path.length ? path.join(' / ') : this.getGroupName(group)
+    }
+
+    async moveProfileToGroup (profile: PartialProfile<Profile>): Promise<void> {
+        if (profile.isBuiltin) {
+            return
+        }
+        const groupId = await this.pickMoveTargetGroup(1)
+        if (groupId === null) {
+            return
+        }
+        profile.group = groupId || ''
+        await this.config.save()
+        this.notifications.info(`已移动“${profile.name}”到“${this.resolveGroupDisplayName(groupId)}”`)
+    }
+
+    async moveSelectedProfilesToGroup (): Promise<void> {
+        const selected = this.profiles.filter(profile => !!profile.id && this.selectedProfileIds.has(profile.id) && !profile.isBuiltin)
+        if (!selected.length) {
+            this.notifications.info('所选主机不可移动（内置配置无法移动）')
+            return
+        }
+        const groupId = await this.pickMoveTargetGroup(selected.length)
+        if (groupId === null) {
+            return
+        }
+        for (const profile of selected) {
+            profile.group = groupId || ''
+        }
+        await this.config.save()
+        this.clearSelection()
+        this.notifications.info(`已移动 ${selected.length} 个主机到“${this.resolveGroupDisplayName(groupId)}”`)
+    }
+
+    private resolveGroupDisplayName (groupId: string): string {
+        if (!groupId) {
+            return '未分组'
+        }
+        const path = this.profilesService.resolveProfileGroupPath(groupId)
+        if (path.length) {
+            return path.join(' / ')
+        }
+        const group = this.profileGroups.find(candidate => candidate.id === groupId)
+        return group ? this.getGroupName(group) : groupId
+    }
+
+    private async pickMoveTargetGroup (count: number): Promise<string|null> {
+        this.movableGroups = this.profileGroups
+            .filter(group => group.editable && group.id !== 'ungrouped')
+            .sort((a, b) => this.getGroupOptionLabel(a).localeCompare(this.getGroupOptionLabel(b)))
+        this.moveTargetGroupId = ''
+        this.moveTargetCount = count
+
+        const modal = this.ngbModal.open(this.moveGroupModal, {
+            centered: true,
+            ariaLabelledBy: 'move-group-title',
+        })
+        const result = await modal.result.catch(() => null)
+        return result ?? null
+    }
+
     async newProfileGroup (): Promise<void> {
         this.editProfileGroup({
             id: 'new',
@@ -434,10 +611,12 @@ export class ProfilesSettingsTabComponent extends BaseComponent {
     selectGroup (groupId: string): void {
         this.selectedGroupId = groupId
         this.filter = ''
+        this.clearSelection()
         this.refreshProfileView()
     }
 
     onFilterChange (): void {
+        this.clearSelection()
         this.refreshProfileView()
     }
 

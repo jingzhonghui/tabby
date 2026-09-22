@@ -18,8 +18,8 @@ const iconsClassList = Object.keys(iconsData).map(
 export class EditProfileGroupModalComponent<G extends ProfileGroup> {
     @Input() group: G & ConfigProxy<G>
     @Input() providers: ProfileProvider<Profile>[]
-    @Input() selectedParentGroup: PartialProfileGroup<ProfileGroup> | undefined
     groups: PartialProfileGroup<ProfileGroup>[]
+    parentSelection = ''
 
     getValidParents (groups: PartialProfileGroup<ProfileGroup>[], targetId: string): PartialProfileGroup<ProfileGroup>[] {
         // Build a quick lookup: parentGroupId -> [child groups]
@@ -68,7 +68,13 @@ export class EditProfileGroupModalComponent<G extends ProfileGroup> {
     async ngOnInit () {
         const groups = await this.profilesService.getProfileGroups()
         this.groups = this.getValidParents(groups, this.group.id)
-        this.selectedParentGroup = groups.find(g => g.id === this.group.parentGroupId) ?? undefined
+        this.groups.sort((a, b) => this.getGroupLabel(a).localeCompare(this.getGroupLabel(b)))
+        this.parentSelection = this.group.parentGroupId ?? ''
+    }
+
+    getGroupLabel (group: PartialProfileGroup<ProfileGroup>): string {
+        const path = this.profilesService.resolveProfileGroupPath(group.id)
+        return path.length ? path.join(' / ') : group.name
     }
 
     colorsAutocomplete = text$ => text$.pipe(
@@ -85,15 +91,6 @@ export class EditProfileGroupModalComponent<G extends ProfileGroup> {
         return TAB_COLORS.find(x => x.value === value)?.name ?? value
     }
 
-    groupTypeahead: OperatorFunction<string, readonly PartialProfileGroup<ProfileGroup>[]> = (text$: Observable<string>) =>
-        text$.pipe(
-            debounceTime(200),
-            distinctUntilChanged(),
-            map(q => this.groups.filter(g => !q || g.name.toLowerCase().includes(q.toLowerCase()))),
-        )
-
-    groupFormatter = (g: PartialProfileGroup<ProfileGroup>) => g.name
-
     iconSearch: OperatorFunction<string, string[]> = (text$: Observable<string>) =>
         text$.pipe(
             debounceTime(200),
@@ -101,11 +98,7 @@ export class EditProfileGroupModalComponent<G extends ProfileGroup> {
         )
 
     async save () {
-        if (!this.selectedParentGroup) {
-            this.group.parentGroupId = undefined
-        } else {
-            this.group.parentGroupId = this.selectedParentGroup.id
-        }
+        this.group.parentGroupId = this.parentSelection || undefined
 
         if (this.group.id === 'new') {
             await this.profilesService.newProfileGroup(this.group, { genId: true })

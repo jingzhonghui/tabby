@@ -84,14 +84,55 @@
                         (ngModelChange)='onFilterChange()'
                     )
 
-                button.btn.btn-outline-primary.flex-shrink-0((click)='importProfiles()')
+                button.btn.toolbar-icon-btn(
+                    *ngIf='hiddenProfileCount > 0 || showHiddenProfiles',
+                    (click)='toggleShowHidden()',
+                    [class.btn-outline-secondary]='!showHiddenProfiles',
+                    [class.btn-secondary]='showHiddenProfiles',
+                    [attr.aria-pressed]='showHiddenProfiles',
+                    [attr.aria-label]='"显示或隐藏已隐藏的主机（" + hiddenProfileCount + " 项）"',
+                    [ngbTooltip]='"显示/隐藏已隐藏的主机（" + hiddenProfileCount + " 项）"'
+                )
+                    i.fas.fa-fw.fa-eye
+
+                button.btn.btn-outline-secondary.toolbar-icon-btn(
+                    (click)='moveSelectedProfilesToGroup()',
+                    [disabled]='checkedCount === 0',
+                    aria-label='移动所选主机至分组',
+                    [ngbTooltip]='"移动至分组（已选 " + checkedCount + "）"'
+                )
+                    i.fas.fa-fw.fa-folder-open
+
+                button.btn.btn-danger.toolbar-icon-btn(
+                    (click)='deleteSelectedProfiles()',
+                    [disabled]='checkedCount === 0',
+                    aria-label='删除所选主机',
+                    [ngbTooltip]='"删除所选（已选 " + checkedCount + "）"'
+                )
+                    i.fas.fa-fw.fa-trash-alt
+
+                button.btn.btn-outline-secondary.toolbar-icon-btn(
+                    *ngIf='checkedCount > 0',
+                    (click)='clearSelection()',
+                    aria-label='取消选择',
+                    ngbTooltip='取消选择'
+                )
+                    i.fas.fa-fw.fa-xmark
+
+                button.btn.btn-outline-primary.toolbar-icon-btn(
+                    (click)='importProfiles()',
+                    aria-label='导入配置',
+                    ngbTooltip='导入配置'
+                )
                     i.fas.fa-fw.fa-file-import
-                    span.ms-1 导入
 
                 div(ngbDropdown).d-inline-block.flex-shrink-0
-                    button.btn.btn-outline-primary(ngbDropdownToggle)
+                    button.btn.btn-outline-primary.toolbar-icon-btn(
+                        ngbDropdownToggle,
+                        aria-label='导出配置',
+                        ngbTooltip='导出配置'
+                    )
                         i.fas.fa-fw.fa-file-export
-                        span.ms-1 导出
                     div(ngbDropdownMenu)
                         button(ngbDropdownItem, (click)='exportProfiles(false)')
                             i.fas.fa-fw.fa-shield-halved
@@ -100,12 +141,23 @@
                             i.fas.fa-fw.fa-key
                             span 包含密码和私钥
 
-                button.btn.btn-primary.flex-shrink-0((click)='newProfile()')
+                button.btn.btn-primary.toolbar-icon-btn(
+                    (click)='newProfile()',
+                    aria-label='新建配置',
+                    ngbTooltip='新建配置'
+                )
                     i.fas.fa-fw.fa-plus
-                    span.ms-1 新建配置
 
         .profile-list(*ngIf='visibleProfiles.length')
             .profile-list-header.profile-grid
+                .profile-header-select
+                    input.form-check-input(
+                        type='checkbox',
+                        [checked]='allVisibleSelected',
+                        [indeterminate]='someVisibleSelected',
+                        (change)='toggleSelectAllVisible()',
+                        aria-label='全选可见主机'
+                    )
                 .profile-header-main 主机
                 .profile-header-group 分组
                 .profile-header-type 类型
@@ -114,8 +166,18 @@
             .profile-row.profile-grid(
                 *ngFor='let profile of visibleProfiles',
                 [class.profile-row-readonly]='profile.isBuiltin',
+                [class.profile-row-selected]='isSelected(profile)',
                 (click)='profile.isBuiltin ? null : editProfile(profile)'
             )
+                .profile-select
+                    input.form-check-input(
+                        type='checkbox',
+                        *ngIf='profile.id',
+                        [checked]='isSelected(profile)',
+                        (click)='$event.stopPropagation()',
+                        (change)='toggleProfileSelection(profile)',
+                        [attr.aria-label]='"选择 " + profile.name'
+                    )
                 .profile-main
                     profile-icon([icon]='profile.icon', [color]='profile.color')
                     .profile-copy
@@ -145,6 +207,9 @@
                             button.dropdown-item(ngbDropdownItem, *ngIf='profile.id && isProfileBlacklisted(profile)', (click)='$event.stopPropagation(); unblacklistProfile(profile)')
                                 i.fas.fa-fw.fa-eye
                                 span 显示
+                            button.dropdown-item(*ngIf='!profile.isBuiltin', (click)='$event.stopPropagation(); moveProfileToGroup(profile)')
+                                i.fas.fa-fw.fa-folder-open
+                                span 移动至分组
                             button.dropdown-item(*ngIf='!profile.isBuiltin', (click)='$event.stopPropagation(); deleteProfile(profile)')
                                 i.fas.fa-fw.fa-trash-alt
                                 span 删除
@@ -170,6 +235,33 @@ ng-template(#deleteGroupConfirmModal let-modal)
     .modal-footer
         button.btn.btn-secondary(type='button', (click)='modal.dismiss()') 取消
         button.btn.btn-danger(type='button', (click)='modal.close(true)') 删除
+
+ng-template(#batchDeleteConfirmModal let-modal)
+    .modal-header
+        h4.modal-title#batch-delete-confirm-title 批量删除
+        button.btn-close(type='button', aria-label='关闭', (click)='modal.dismiss()')
+
+    .modal-body
+        p.mb-0 {{ batchDeleteConfirmMessage }}
+
+    .modal-footer
+        button.btn.btn-secondary(type='button', (click)='modal.dismiss()') 取消
+        button.btn.btn-danger(type='button', (click)='modal.close(true)') 删除
+
+ng-template(#moveGroupModal let-modal)
+    .modal-header
+        h4.modal-title#move-group-title 移动至分组
+        button.btn-close(type='button', aria-label='关闭', (click)='modal.dismiss()')
+
+    .modal-body
+        p.text-muted.mb-2 将 {{ moveTargetCount }} 个主机移动至：
+        select.form-control([(ngModel)]='moveTargetGroupId')
+            option([ngValue]='""') 未分组
+            option(*ngFor='let group of movableGroups', [ngValue]='group.id') {{ getGroupOptionLabel(group) }}
+
+    .modal-footer
+        button.btn.btn-secondary(type='button', (click)='modal.dismiss()') 取消
+        button.btn.btn-primary(type='button', (click)='modal.close(moveTargetGroupId)') 移动
 
 ng-template(#advancedSettingsModal let-modal)
     .modal-header

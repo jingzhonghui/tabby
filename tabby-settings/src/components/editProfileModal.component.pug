@@ -20,16 +20,11 @@
 
             .mb-3(*ngIf='defaultsMode === "disabled"')
                 label(translate) Group
-                input.form-control(
-                    type='text',
-                    alwaysVisibleTypeahead,
-                    placeholder='Ungrouped',
-                    [(ngModel)]='profileGroup',
-                    [ngbTypeahead]='groupTypeahead',
-                    [inputFormatter]="groupFormatter",
-			        [resultFormatter]="groupFormatter",
-			        [editable]="false"
+                select.form-control(
+                    [(ngModel)]='groupSelection',
                 )
+                    option([ngValue]='""', translate) Ungrouped
+                    option(*ngFor='let group of groups', [ngValue]='group.id') {{ getGroupLabel(group) }}
 
             .mb-3(*ngIf='defaultsMode === "disabled"')
                 label(translate) Icon

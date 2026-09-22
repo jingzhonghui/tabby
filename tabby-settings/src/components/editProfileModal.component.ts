@@ -20,8 +20,8 @@ export class EditProfileModalComponent<P extends Profile, PP extends ProfileProv
     @Input() profileProvider: PP
     @Input() settingsComponent: new () => ProfileSettingsComponent<P, PP>
     @Input() defaultsMode: 'enabled'|'group'|'disabled' = 'disabled'
-    @Input() profileGroup: PartialProfileGroup<ProfileGroup> | undefined
     groups: PartialProfileGroup<ProfileGroup>[]
+    groupSelection = ''
     @ViewChild('placeholder', { read: ViewContainerRef }) placeholder: ViewContainerRef
 
     protected profile: FullyDefined<P> & ConfigProxy<FullyDefined<P>>
@@ -35,10 +35,22 @@ export class EditProfileModalComponent<P extends Profile, PP extends ProfileProv
     ) {
         if (this.defaultsMode === 'disabled') {
             this.profilesService.getProfileGroups().then(groups => {
+                this.groupSelection = this.partialProfile.group ?? ''
+                if (this.groupSelection && !groups.some(g => g.id === this.groupSelection)) {
+                    groups = [
+                        { id: this.groupSelection, name: this.profilesService.resolveProfileGroupName(this.groupSelection) },
+                        ...groups,
+                    ]
+                }
+                groups.sort((a, b) => this.getGroupLabel(a).localeCompare(this.getGroupLabel(b)))
                 this.groups = groups
-                this.profileGroup = groups.find(g => g.id === this.partialProfile.group)
             })
         }
+    }
+
+    getGroupLabel (group: PartialProfileGroup<ProfileGroup>): string {
+        const path = this.profilesService.resolveProfileGroupPath(group.id)
+        return path.length ? path.join(' / ') : group.name
     }
 
     colorsAutocomplete = text$ => text$.pipe(
@@ -72,15 +84,6 @@ export class EditProfileModalComponent<P extends Profile, PP extends ProfileProv
         }
     }
 
-    groupTypeahead: OperatorFunction<string, readonly PartialProfileGroup<ProfileGroup>[]> = (text$: Observable<string>) =>
-        text$.pipe(
-            debounceTime(200),
-            distinctUntilChanged(),
-            map(q => this.groups.filter(g => !q || g.name.toLowerCase().includes(q.toLowerCase()))),
-        )
-
-    groupFormatter = (g: PartialProfileGroup<ProfileGroup>) => g.name
-
     iconSearch: OperatorFunction<string, string[]> = (text$: Observable<string>) =>
         text$.pipe(
             debounceTime(200),
@@ -88,11 +91,7 @@ export class EditProfileModalComponent<P extends Profile, PP extends ProfileProv
         )
 
     save () {
-        if (!this.profileGroup) {
-            this.profile.group = ''
-        } else {
-            this.profile.group = this.profileGroup.id
-        }
+        this.profile.group = this.groupSelection || ''
 
         this.settingsComponentInstance?.save?.()
         this.profile.__cleanup()
