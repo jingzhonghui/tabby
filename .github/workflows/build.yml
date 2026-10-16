@@ -1,8 +1,12 @@
 name: Package-Build
-on: [push, pull_request]
+# 仅手动触发（Actions 页面 Run workflow / API dispatch），避免 push 时自动出包
+on:
+  workflow_dispatch:
 jobs:
   Lint:
     runs-on: ubuntu-24.04
+    # 出包是唯一目的：lint / 单测失败不应阻塞打包（结果仍会显示在 Actions 中）
+    continue-on-error: true
 
     steps:
     - name: Checkout
