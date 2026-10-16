@@ -5,6 +5,10 @@
     src: url(../fonts/SourceCodePro.ttf) format("truetype");
 }
 
+.xterm-viewport {
+    background: none !important;
+}
+
 .xterm-viewport::-webkit-scrollbar {
     background: rgba(0, 0, 0, .125);
     width: 5px;

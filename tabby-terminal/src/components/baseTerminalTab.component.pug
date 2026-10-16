@@ -1,6 +1,7 @@
 .content(#content, [style.opacity]='frontendIsReady ? 1 : 0')
 search-panel(
-    *ngIf='showSearchPanel && hasFocus && frontend',
+    *ngIf='showSearchPanel && frontend',
+    [class.d-none]='!hasFocus',
     @toolbarSlide,
     [@.disabled]='!config.store.accessibility.animations',
     [frontend]='frontend',
