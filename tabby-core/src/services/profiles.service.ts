@@ -389,7 +389,13 @@ export class ProfilesService {
     */
     getProviderDefaults (provider: ProfileProvider<Profile>): any {
         const defaults = this.config.store.profileDefaults
-        return defaults[provider.id] ?? {}
+        // `profileDefaults` is a non-structural value, so a config file carrying an empty
+        // object (written by an older version, or restored from a sync snapshot) shadows
+        // the provider defaults baked into configDefaults.yaml entirely - e.g. ssh's
+        // `disableDynamicTitle`, which is what keeps the profile name in the tab title.
+        // Fall back to the built-in value unless the user has an explicit entry.
+        const builtinDefaults: Record<string, any> = this.config.getDefaults().profileDefaults ?? {}
+        return defaults[provider.id] ?? builtinDefaults[provider.id] ?? {}
     }
 
     /**
