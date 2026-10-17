@@ -2,6 +2,16 @@ name: Package-Build
 # 仅手动触发（Actions 页面 Run workflow / API dispatch），避免 push 时自动出包
 on:
   workflow_dispatch:
+    inputs:
+      # 留空 = 正常出包；填了 = 只做"搬运"（把某个历史 run 的 artifacts 发到指定 tag 的 release）
+      backfill_run_id:
+        description: '仅搬运模式：来源 Actions run ID（留空则正常出包）'
+        required: false
+        default: ''
+      backfill_tag:
+        description: '仅搬运模式：目标 release tag'
+        required: false
+        default: ''
 
 # 发布 draft release 需要写权限
 permissions:
@@ -9,6 +19,8 @@ permissions:
 
 jobs:
   Lint:
+    # 搬运模式下不出包，直接跳过（下游 job 因 needs 也会自动跳过）
+    if: ${{ !inputs.backfill_run_id }}
     runs-on: ubuntu-24.04
     # 出包是唯一目的：lint / 单测失败不应阻塞打包（结果仍会显示在 Actions 中）
     continue-on-error: true
@@ -580,6 +592,33 @@ jobs:
       with:
         tag_name: ${{ github.ref_name }}
         name: ${{ github.ref_name }}
+        draft: true
+        fail_on_unmatched_files: false
+        files: all-artifacts/**
+
+  # 搬运模式：把某个历史 run 的 artifacts 直接发到指定 tag 的 draft release。
+  # 全程在 GitHub runner 上跑，不受本地带宽限制（本地下载 3.3GB 需要数小时）。
+  Backfill:
+    if: ${{ inputs.backfill_run_id }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+    - name: Download artifacts from source run
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh run download "${{ inputs.backfill_run_id }}" -D all-artifacts --repo "${{ github.repository }}"
+
+    - name: List downloaded files
+      run: find all-artifacts -type f -printf '%10s  %p\n' | sort -k2
+
+    - name: Create draft release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ inputs.backfill_tag }}
+        name: ${{ inputs.backfill_tag }}
         draft: true
         fail_on_unmatched_files: false
         files: all-artifacts/**
