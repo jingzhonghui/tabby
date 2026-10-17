@@ -1,0 +1,39 @@
+name: Backfill Release
+
+# 一次性工具：把某个历史 run 的 artifacts 搬运到指定 tag 的 draft release。
+# 全程在 GitHub runner 上执行，不占用本地带宽（本地下载 3.3GB 需要数小时）。
+# 用法：Actions -> Backfill Release -> Run workflow，填 run_id 和 tag。
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: '来源 Actions run ID（例如 38921988952）'
+        required: true
+      tag:
+        description: '目标 release tag（例如 v1.0.238.1）'
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download artifacts from source run
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh run download "${{ inputs.run_id }}" -D all-artifacts --repo "${{ github.repository }}"
+
+    - name: List downloaded files
+      run: find all-artifacts -type f -printf '%10s  %p\n' | sort -k2
+
+    - name: Create draft release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ inputs.tag }}
+        name: ${{ inputs.tag }}
+        draft: true
+        fail_on_unmatched_files: false
+        files: all-artifacts/**
