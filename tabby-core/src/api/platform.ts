@@ -20,6 +20,22 @@ export interface MessageBoxResult {
     response: number
 }
 
+export interface HttpRequestOptions {
+    url: string
+    method?: string
+    headers?: Record<string, string>
+    body?: string
+    /** Request timeout in milliseconds, defaults to 30000. */
+    timeoutMs?: number
+}
+
+export interface HttpResponse {
+    status: number
+    statusText: string
+    headers: Record<string, string>
+    body: string
+}
+
 export abstract class FileTransfer {
     abstract getName (): string
     abstract getSize (): number
@@ -258,6 +274,38 @@ export abstract class PlatformService {
 
     getTheme (): PlatformTheme {
         return 'dark'
+    }
+
+    /**
+     * Perform an HTTP request that is not subject to browser CORS restrictions.
+     *
+     * The Electron implementation proxies the request through the main process,
+     * which also routes it through the system proxy configuration. This default
+     * implementation is used by browser-like platforms.
+     */
+    async httpRequest (options: HttpRequestOptions): Promise<HttpResponse> {
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 30000)
+        try {
+            const response = await fetch(options.url, {
+                method: options.method ?? 'GET',
+                headers: options.headers,
+                body: options.body,
+                signal: controller.signal,
+            })
+            const headers: Record<string, string> = {}
+            response.headers.forEach((value, key) => {
+                headers[key.toLowerCase()] = value
+            })
+            return {
+                status: response.status,
+                statusText: response.statusText,
+                headers,
+                body: await response.text(),
+            }
+        } finally {
+            clearTimeout(timeout)
+        }
     }
 
     abstract getOSRelease (): string

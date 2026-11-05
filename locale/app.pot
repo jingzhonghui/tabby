@@ -2862,3 +2862,18 @@ msgstr ""
 #: tabby-settings/src/components/profilesSettingsTab.component.ts:88
 msgid "{name} copy"
 msgstr ""
+
+msgid "Code snippets are not private: anyone who obtains the snippet link can read it."
+msgstr ""
+
+msgid "Enable Vault encryption before syncing anything sensitive."
+msgstr ""
+
+msgid "Personal access token with permission to manage code snippets"
+msgstr ""
+
+msgid "Sync service"
+msgstr ""
+
+msgid "Where the configuration is stored"
+msgstr ""

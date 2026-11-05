@@ -6,6 +6,20 @@ ul.nav-tabs(ngbNav, #nav='ngbNav')
         ng-template(ngbNavContent)
             .form-line
                 .header
+                    .title(translate) Sync service
+                    .description(translate) Where the configuration is stored
+
+                select.form-control.w-50(
+                    [(ngModel)]='config.store.configSync.backend',
+                    (ngModelChange)='onBackendChange()'
+                )
+                    option(
+                        *ngFor='let backend of availableBackends',
+                        [value]='backend.id'
+                    ) {{backend.name}}
+
+            .form-line(*ngIf='needsHost')
+                .header
                     .title(translate) Sync host
 
                 .input-group.w-50
@@ -20,23 +34,35 @@ ul.nav-tabs(ngbNav, #nav='ngbNav')
                     )
                         i.fas.fa-external-link-alt
 
-            .form-line(*ngIf='config.store.configSync.host')
+            .form-line
                 .header
                     .title(translate) Secret sync token
-                    .description(translate) Get it from the Tabby Web settings window
+                    .description(*ngIf='needsHost', translate) Get it from the Tabby Web settings window
+                    .description(*ngIf='!needsHost', translate) Personal access token with permission to manage code snippets
 
                 .input-group
                     input.form-control(
                         type='password',
                         [(ngModel)]='config.store.configSync.token',
+                        (change)='config.save(); testConnection()',
                         (keydown.enter)='config.save(); testConnection()'
                     )
+                    button.btn.btn-secondary(
+                        *ngIf='activeBackend?.tokenHelpUrl',
+                        (click)='openTokenHelp()'
+                    )
+                        i.fas.fa-external-link-alt
                     .input-group-text(*ngIf='config.store.configSync.token')
                         i.fas.fa-fw.fa-circle-notch.fa-spin.text-warning(*ngIf='connectionSuccessful === null')
                         i.fas.fa-fw.fa-check.text-success(*ngIf='connectionSuccessful')
                         i.fas.fa-fw.fa-exclamation-triangle.text-danger(*ngIf='connectionSuccessful === false')
 
-            .alert.alert-info.d-flex.align-items-center
+            .alert.alert-warning.d-flex.align-items-center(*ngIf='activeBackend?.publicReachable')
+                .me-auto
+                    span(translate) Code snippets are not private: anyone who obtains the snippet link can read it.
+                    span.ms-1(translate) Enable Vault encryption before syncing anything sensitive.
+
+            .alert.alert-info.d-flex.align-items-center(*ngIf='needsHost')
                 .me-auto
                     span(translate) Config sync requires an instance of the Tabby Web service.
                     a.ml-1((click)='openTabbyWebInfo()', href='#', translate) Learn more
@@ -44,7 +70,7 @@ ul.nav-tabs(ngbNav, #nav='ngbNav')
             ng-container(*ngIf='config.store.configSync.token')
                 .alert.alert-danger(*ngIf='connectionSuccessful === false')
                     i.fas.fa-exclamation-triangle
-                    span.ms-2(translate='Connection failed: {error}', [translateParams]='{error: connectionError}')
+                    span.ms-2(translate='Connection failed: {error}', [translateParams]='{error: connectionError?.message || connectionError}')
 
             ng-container(*ngIf='connectionSuccessful')
                 .form-line

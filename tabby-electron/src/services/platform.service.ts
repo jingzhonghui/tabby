@@ -5,7 +5,7 @@ import * as os from 'os'
 import promiseIpc, { RendererProcessType } from 'electron-promise-ipc'
 import { execFile } from 'mz/child_process'
 import { Injectable, NgZone } from '@angular/core'
-import { PlatformService, ClipboardContent, Platform, MenuItemOptions, MessageBoxOptions, MessageBoxResult, DirectoryUpload, FileUpload, FileDownload, DirectoryDownload, FileUploadOptions, wrapPromise, TranslateService, FileTransfer, PlatformTheme } from 'tabby-core'
+import { PlatformService, ClipboardContent, Platform, MenuItemOptions, MessageBoxOptions, MessageBoxResult, DirectoryUpload, FileUpload, FileDownload, DirectoryDownload, FileUploadOptions, HttpRequestOptions, HttpResponse, wrapPromise, TranslateService, FileTransfer, PlatformTheme } from 'tabby-core'
 import { ElectronService } from '../services/electron.service'
 import { ElectronHostWindow } from './hostWindow.service'
 import { ShellIntegrationService } from './shellIntegration.service'
@@ -150,6 +150,10 @@ export class ElectronPlatformService extends PlatformService {
 
     async saveConfig (content: string): Promise<void> {
         await this.hostApp.saveConfig(content)
+    }
+
+    async httpRequest (options: HttpRequestOptions): Promise<HttpResponse> {
+        return this.electron.ipcRenderer.invoke('app:http-request', options)
     }
 
     getConfigPath (): string|null {

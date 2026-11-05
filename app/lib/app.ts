@@ -8,6 +8,7 @@ import * as fs from 'fs'
 import { Subject, throttleTime } from 'rxjs'
 
 import { saveConfig } from './config'
+import { registerHttpHandler } from './http'
 import { Window, WindowOptions } from './window'
 import { pluginManager } from './pluginManager'
 import { PTYManager } from './pty'
@@ -37,6 +38,8 @@ export class Application {
             await saveConfig(config)
             this.broadcastExcept('host:config-change', event.sender, config)
         })
+
+        registerHttpHandler()
 
         ipcMain.on('app:register-global-hotkey', (_event, specs) => {
             globalShortcut.unregisterAll()

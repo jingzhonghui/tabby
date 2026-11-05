@@ -22,6 +22,9 @@ import { ConfigSyncSettingsTabComponent } from './components/configSyncSettingsT
 import { ShowSecretModalComponent } from './components/showSecretModal.component'
 
 import { ConfigSyncService } from './services/configSync.service'
+import { TabbyWebSyncBackend } from './services/configSync/tabbyWebBackend'
+import { GitHubGistSyncBackend, GiteeGistSyncBackend } from './services/configSync/gistBackend'
+import { ConfigSyncBackend } from './api/configSyncBackend'
 
 import { SettingsTabProvider } from './api'
 import { ButtonProvider } from './buttonProvider'
@@ -47,6 +50,9 @@ import { HotkeySettingsTabProvider, WindowSettingsTabProvider, VaultSettingsTabP
         { provide: SettingsTabProvider, useClass: VaultSettingsTabProvider, multi: true },
         { provide: SettingsTabProvider, useClass: ProfilesSettingsTabProvider, multi: true },
         { provide: SettingsTabProvider, useClass: ConfigSyncSettingsTabProvider, multi: true },
+        { provide: ConfigSyncBackend, useClass: TabbyWebSyncBackend, multi: true },
+        { provide: ConfigSyncBackend, useClass: GitHubGistSyncBackend, multi: true },
+        { provide: ConfigSyncBackend, useClass: GiteeGistSyncBackend, multi: true },
     ],
     declarations: [
         EditProfileModalComponent,
@@ -84,6 +90,7 @@ export default class SettingsModule {
 }
 
 export * from './api'
+export * from './api/configSyncBackend'
 export {
     SettingsTabComponent,
     EditProfileModalComponent,

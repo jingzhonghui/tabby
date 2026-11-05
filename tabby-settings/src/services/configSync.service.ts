@@ -1,21 +1,14 @@
 import * as yaml from 'js-yaml'
-import { Injectable } from '@angular/core'
+import { Inject, Injectable, Optional } from '@angular/core'
 import { ConfigService, HostAppService, Logger, LogService, Platform, PlatformService } from 'tabby-core'
 
-export interface User {
-    id: number
-}
+import { ConfigSyncBackend, SyncRemoteConfig } from '../api/configSyncBackend'
 
-export interface Config {
-    id: number
-    name: string
-    content: string
-    last_used_with_version: string|null
-    created_at: Date
-    modified_at: Date
-}
+export type { ConfigSyncBackend, SyncRemoteConfig } from '../api/configSyncBackend'
 
 const OPTIONAL_CONFIG_PARTS = ['hotkeys', 'appearance', 'vault']
+
+export const DEFAULT_CONFIG_SYNC_BACKEND = 'tabby-web'
 
 @Injectable({ providedIn: 'root' })
 export class ConfigSyncService {
@@ -27,6 +20,7 @@ export class ConfigSyncService {
         private platform: PlatformService,
         private hostApp: HostAppService,
         private config: ConfigService,
+        @Optional() @Inject(ConfigSyncBackend) private backends: ConfigSyncBackend[] | null,
     ) {
         this.logger = log.create('configSync')
         config.ready$.toPromise().then(() => {
@@ -39,46 +33,71 @@ export class ConfigSyncService {
         })
     }
 
+    getBackends (): ConfigSyncBackend[] {
+        return this.backends ?? []
+    }
+
+    /** The backend currently selected in the settings. */
+    getBackend (): ConfigSyncBackend|null {
+        const backends = this.getBackends()
+        const selected = this.config.store.configSync.backend ?? DEFAULT_CONFIG_SYNC_BACKEND
+        const matched = backends.find(x => x.id === selected)
+        if (matched) {
+            return matched
+        }
+        return backends.length ? backends[0] : null
+    }
+
     isAvailable (): boolean {
         return this.hostApp.platform !== Platform.Web
     }
 
     isEnabled (): boolean {
-        return this.isAvailable() &&
-            !!this.config.store.configSync.host &&
-            !!this.config.store.configSync.token &&
-            !!this.config.store.configSync.configID
+        const backend = this.getBackend()
+        if (!this.isAvailable() || !backend) {
+            return false
+        }
+        if (!this.config.store.configSync.token) {
+            return false
+        }
+        if (this.config.store.configSync.configID === null || this.config.store.configSync.configID === undefined) {
+            return false
+        }
+        if (backend.hostEditable && !this.config.store.configSync.host) {
+            return false
+        }
+        return true
     }
 
-    async getConfigs (): Promise<Config[]> {
-        return this.request('GET', '/api/1/configs')
+    async getConfigs (): Promise<SyncRemoteConfig[]> {
+        return this.requireBackend().listConfigs()
     }
 
-    async getConfig (id: number): Promise<Config> {
-        return this.request('GET', `/api/1/configs/${id}`)
+    async getConfig (id: string|number): Promise<SyncRemoteConfig> {
+        return this.requireBackend().getConfig(id)
     }
 
-    async updateConfig (id: number, data: Partial<Config>): Promise<Config> {
-        return this.request('PATCH', `/api/1/configs/${id}`, { data })
-    }
-
-    async getUser (): Promise<any> {
-        return this.request('GET', '/api/1/user')
-    }
-
-    async createNewConfig (name: string): Promise<Config> {
-        return this.request('POST', '/api/1/configs', {
-            data: {
-                name,
-            },
+    async updateConfig (id: string|number, data: Partial<SyncRemoteConfig>): Promise<SyncRemoteConfig> {
+        return this.requireBackend().updateConfig(id, {
+            name: data.name,
+            content: data.content,
+            last_used_with_version: data.last_used_with_version ?? undefined,
         })
     }
 
-    async deleteConfig (id: number): Promise<any> {
-        return this.request('DELETE', `/api/1/configs/${id}`)
+    async getUser (): Promise<{ name: string }> {
+        return this.requireBackend().checkAuth()
     }
 
-    setConfig (config: Config): void {
+    async createNewConfig (name: string): Promise<SyncRemoteConfig> {
+        return this.requireBackend().createConfig(name, '')
+    }
+
+    async deleteConfig (id: string|number): Promise<void> {
+        return this.requireBackend().deleteConfig(id)
+    }
+
+    setConfig (config: SyncRemoteConfig): void {
         this.config.store.configSync.configID = config.id
         this.config.save()
         this.lastRemoteChange = new Date(config.modified_at)
@@ -90,7 +109,8 @@ export class ConfigSyncService {
         }
         try {
             const data = await this.readConfigDataForSync()
-            const remoteData = yaml.load((await this.getConfig(this.config.store.configSync.configID)).content) as any
+            const remote = await this.getConfig(this.config.store.configSync.configID)
+            const remoteData = (yaml.load(remote.content || '{}') ?? {}) as any
             for (const part of OPTIONAL_CONFIG_PARTS) {
                 if (!this.config.store.configSync.parts[part]) {
                     data[part] = remoteData[part]
@@ -115,7 +135,7 @@ export class ConfigSyncService {
         }
         try {
             const config = await this.getConfig(this.config.store.configSync.configID)
-            const data = yaml.load(config.content) as any
+            const data = (yaml.load(config.content || '{}') ?? {}) as any
 
             const localData = yaml.load(this.config.readRaw()) as any
             data.configSync = localData.configSync
@@ -136,7 +156,7 @@ export class ConfigSyncService {
         }
     }
 
-    async delete (config: Config): Promise<void> {
+    async delete (config: SyncRemoteConfig): Promise<void> {
         try {
             await this.deleteConfig(config.id)
             this.logger.debug('Config deleted')
@@ -144,6 +164,14 @@ export class ConfigSyncService {
             this.logger.error('Delete failed:', error)
             throw error
         }
+    }
+
+    private requireBackend (): ConfigSyncBackend {
+        const backend = this.getBackend()
+        if (!backend) {
+            throw new Error('No config sync backend is available')
+        }
+        return backend
     }
 
     private async readConfigDataForSync (): Promise<any> {
@@ -156,45 +184,6 @@ export class ConfigSyncService {
         await this.platform.saveConfig(yaml.dump(data))
         await this.config.load()
         await this.config.save()
-    }
-
-    private async request (method: 'GET'|'POST'|'PATCH'|'DELETE', url: string, { data }: { data?: any } = {}) {
-        if (this.config.store.configSync.host.endsWith('/')) {
-            this.config.store.configSync.host = this.config.store.configSync.host.slice(0, -1)
-        }
-        const host: string = this.config.store.configSync.host
-        // Refuse to sync configuration over a plaintext channel. The remote
-        // payload is parsed as YAML and merged into the local config (including
-        // profiles whose `command`/`env` are later executed by the terminal),
-        // so a network attacker able to MITM cleartext HTTP could achieve
-        // arbitrary command execution on the next sync. Require HTTPS.
-        if (!/^https:\/\//i.test(host)) {
-            const message = `Config sync host must use HTTPS (got: ${host})`
-            this.logger.error(message)
-            throw new Error(message)
-        }
-        url = host + url
-        this.logger.debug(`${method} ${url}`, data)
-        try {
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    Authorization: `Bearer ${this.config.store.configSync.token}`,
-                    ...data !== undefined ? { 'Content-Type': 'application/json' } : {},
-                },
-                body: data !== undefined ? JSON.stringify(data) : undefined,
-            })
-            if (!response.ok) {
-                throw new Error(`${method} ${url} failed: ${response.status} ${response.statusText}`)
-            }
-            this.logger.debug(response)
-            // ponytail: DELETE returns empty 204, parse only if there's a body
-            const text = await response.text()
-            return text ? JSON.parse(text) : undefined
-        } catch (error) {
-            this.logger.error(error)
-            throw error
-        }
     }
 
     private async autoSync () {

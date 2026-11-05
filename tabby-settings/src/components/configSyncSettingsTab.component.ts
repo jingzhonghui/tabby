@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { Component, HostBinding } from '@angular/core'
+import { Component, HostBinding, Inject, Optional } from '@angular/core'
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
 import { BaseComponent, ConfigService, PromptModalComponent, HostAppService, PlatformService, NotificationsService, TranslateService } from 'tabby-core'
-import { Config, ConfigSyncService } from '../services/configSync.service'
+import { ConfigSyncBackend, SyncRemoteConfig } from '../api/configSyncBackend'
+import { ConfigSyncService } from '../services/configSync.service'
 
 
 /** @hidden */
@@ -14,7 +15,7 @@ import { Config, ConfigSyncService } from '../services/configSync.service'
 export class ConfigSyncSettingsTabComponent extends BaseComponent {
     connectionSuccessful: boolean|null = null
     connectionError: Error|null = null
-    configs: Config[]|null = null
+    configs: SyncRemoteConfig[]|null = null
 
     @HostBinding('class.content-box') true
 
@@ -26,33 +27,76 @@ export class ConfigSyncSettingsTabComponent extends BaseComponent {
         private ngbModal: NgbModal,
         private notifications: NotificationsService,
         private translate: TranslateService,
+        @Optional() @Inject(ConfigSyncBackend) public backends: ConfigSyncBackend[]|null,
     ) {
         super()
     }
 
-    async ngOnInit () {
-        await this.testConnection()
+    ngOnInit () {
+        this.testConnection()
         this.loadConfigs()
     }
 
+    get availableBackends (): ConfigSyncBackend[] {
+        return this.backends ?? []
+    }
+
+    get activeBackend (): ConfigSyncBackend|null {
+        return this.configSync.getBackend()
+    }
+
+    get needsHost (): boolean {
+        return !!this.activeBackend?.hostEditable
+    }
+
+    get canConnect (): boolean {
+        if (!this.config.store.configSync.token) {
+            return false
+        }
+        return !this.needsHost || !!this.config.store.configSync.host
+    }
+
+    async onBackendChange () {
+        // A config ID from one backend is meaningless to another, and so is its
+        // access token - forwarding a token to the wrong service would leak it.
+        this.config.store.configSync.configID = null
+        this.config.store.configSync.token = null
+        this.config.save()
+        this.connectionSuccessful = null
+        this.connectionError = null
+        this.configs = null
+        await this.testConnection()
+    }
+
     async testConnection () {
-        if (!this.config.store.configSync.host || !this.config.store.configSync.token) {
+        if (!this.canConnect) {
+            this.connectionSuccessful = null
+            this.configs = null
             return
         }
         this.connectionSuccessful = null
         try {
             await this.configSync.getUser()
             this.connectionSuccessful = true
-            this.loadConfigs()
+            await this.loadConfigs()
         } catch (e) {
             this.connectionSuccessful = false
-            this.connectionError = e
+            this.connectionError = e as Error
             this.configs = null
         }
     }
 
     async loadConfigs () {
-        this.configs = await this.configSync.getConfigs()
+        if (!this.connectionSuccessful) {
+            return
+        }
+        try {
+            this.configs = await this.configSync.getConfigs()
+        } catch (e) {
+            this.connectionSuccessful = false
+            this.connectionError = e as Error
+            this.configs = null
+        }
     }
 
     async uploadAsNew () {
@@ -65,12 +109,11 @@ export class ConfigSyncSettingsTabComponent extends BaseComponent {
             return
         }
         const cfg = await this.configSync.createNewConfig(name)
-        this.loadConfigs()
-        this.configSync.setConfig(cfg)
-        this.uploadAndSync(cfg)
+        await this.loadConfigs()
+        await this.uploadAndSync(cfg)
     }
 
-    async uploadAndSync (cfg: Config) {
+    async uploadAndSync (cfg: SyncRemoteConfig) {
         if (this.config.store.configSync.configID !== cfg.id) {
             if ((await this.platform.showMessageBox({
                 type: 'warning',
@@ -87,11 +130,11 @@ export class ConfigSyncSettingsTabComponent extends BaseComponent {
         }
         this.configSync.setConfig(cfg)
         await this.configSync.upload()
-        this.loadConfigs()
+        await this.loadConfigs()
         this.notifications.info(this.translate.instant('Config uploaded'))
     }
 
-    async downloadAndSync (cfg: Config) {
+    async downloadAndSync (cfg: SyncRemoteConfig) {
         if ((await this.platform.showMessageBox({
             type: 'warning',
             message: this.translate.instant('Overwrite the local config and start syncing?'),
@@ -109,7 +152,7 @@ export class ConfigSyncSettingsTabComponent extends BaseComponent {
         this.notifications.info(this.translate.instant('Config downloaded'))
     }
 
-    async delete (cfg: Config) {
+    async delete (cfg: SyncRemoteConfig) {
         if ((await this.platform.showMessageBox({
             type: 'warning',
             message: this.translate.instant('Delete the config on the remote side?'),
@@ -123,7 +166,7 @@ export class ConfigSyncSettingsTabComponent extends BaseComponent {
             return
         }
         await this.configSync.delete(cfg)
-        this.loadConfigs()
+        await this.loadConfigs()
         this.notifications.info(this.translate.instant('Config deleted'))
     }
 
@@ -131,15 +174,24 @@ export class ConfigSyncSettingsTabComponent extends BaseComponent {
         return !!this.configs?.find(c => this.isActiveConfig(c))
     }
 
-    isActiveConfig (c: Config) {
+    isActiveConfig (c: SyncRemoteConfig) {
         return c.id === this.config.store.configSync.configID
     }
 
     openSyncHost () {
+        if (!this.config.store.configSync.host) {
+            return
+        }
         if (this.config.store.configSync.host === 'https://api.tabby.sh') {
             this.platform.openExternal('https://app.tabby.sh')
         } else {
             this.platform.openExternal(this.config.store.configSync.host)
+        }
+    }
+
+    openTokenHelp () {
+        if (this.activeBackend?.tokenHelpUrl) {
+            this.platform.openExternal(this.activeBackend.tokenHelpUrl)
         }
     }
 
