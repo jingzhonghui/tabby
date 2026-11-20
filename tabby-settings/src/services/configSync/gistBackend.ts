@@ -106,7 +106,7 @@ abstract class AbstractGistSyncBackend extends ConfigSyncBackend {
                 [META_FILE]: { content: this.serializeMeta({ app: 'tabby', name }) },
             },
         })
-        return this.mapGist(gist)
+        return this.mapGist(gist, name)
     }
 
     async updateConfig (id: string|number, update: SyncConfigUpdate): Promise<SyncRemoteConfig> {
@@ -115,17 +115,23 @@ abstract class AbstractGistSyncBackend extends ConfigSyncBackend {
             files[CONFIG_FILE] = { content: update.content }
         }
         if (update.last_used_with_version !== undefined) {
+            // Only the version is bookkeeping here: the config name lives in the
+            // gist description, so this rewrite must not carry a stale copy of
+            // it (an older version of this code stored it as `meta.name`).
             files[META_FILE] = {
                 content: this.serializeMeta({ app: 'tabby', version: update.last_used_with_version }),
             }
         }
 
-        const body: any = { files }
+        const body: any = {}
+        if (Object.keys(files).length) {
+            body.files = files
+        }
         if (update.name !== undefined) {
             body.description = update.name
         }
 
-        if (!Object.keys(files).length && update.name === undefined) {
+        if (!Object.keys(body).length) {
             return this.getConfig(id)
         }
 
@@ -138,13 +144,19 @@ abstract class AbstractGistSyncBackend extends ConfigSyncBackend {
     }
 
     private gistName (gist: Gist, meta?: GistMeta|null): string {
-        if (meta?.name) {
-            return meta.name
+        // The gist description is what the user sees and edits on the snippet
+        // site, so it is the primary source of truth. `meta.name` is only a
+        // fallback for snippets created before the description was used.
+        const description = gist.description?.trim()
+        if (description) {
+            return description
         }
-        if (gist.description) {
-            return gist.description
+        const metaName = meta?.name?.trim()
+        if (metaName) {
+            return metaName
         }
-        return gist.id
+        // Signals "no name" to the UI instead of exposing the raw gist id.
+        return ''
     }
 
     private mapGist (gist: Gist, name?: string): SyncRemoteConfig {

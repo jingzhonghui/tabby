@@ -2670,3 +2670,6 @@ msgstr "代码片段并非私有：任何拿到片段链接的人都能读取。
 
 msgid "Enable Vault encryption before syncing anything sensitive."
 msgstr "同步任何敏感内容前，请先启用保险库加密。"
+
+msgid "Untitled config"
+msgstr "未命名配置"

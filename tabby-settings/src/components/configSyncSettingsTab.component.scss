@@ -1,29 +1,125 @@
-.config-row {
-    display: flex;
-    align-items: center;
-    gap: .35rem;
+.config-count {
+    padding: .1em .55em;
+    border-radius: 1em;
+    background: var(--theme-bg-more);
+    color: var(--theme-secondary-fg);
+    font-size: .75em;
+    font-weight: normal;
+    line-height: 1.5;
 }
 
-.config-copy {
-    min-width: 10rem;
-    margin-right: auto;
+.config-list {
+    margin-bottom: 8px;
+    border-radius: .4rem;
+    overflow: hidden;
+}
+
+.config-row {
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+    padding: .5rem .65rem;
+    cursor: default;
+
+    &.list-group-item-action {
+        cursor: pointer;
+    }
+}
+
+.config-head {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    min-width: 0;
+}
+
+.config-state {
+    flex: 0 0 1.15rem;
+    display: flex;
+    justify-content: center;
+    opacity: .55;
+
+    .active > & {
+        opacity: 1;
+    }
+}
+
+.config-name {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    line-height: 1.35;
+}
+
+.config-badge {
+    flex: none;
+    padding: .05em .5em;
+    border-radius: .75em;
+    background: var(--theme-bg-more);
+    color: var(--theme-secondary-fg);
+    font-size: .75em;
+    line-height: 1.6;
+    white-space: nowrap;
+}
+
+.config-time {
+    flex: none;
+    margin-left: auto;
+    font-size: .78em;
+    line-height: 1.35;
+    white-space: nowrap;
+    opacity: .65;
 }
 
 .config-actions {
     display: flex;
-    flex: 0 0 auto;
     flex-wrap: wrap;
-    justify-content: flex-end;
+    gap: .4rem;
+    // Aligns the buttons with the config name above them.
+    padding-left: 1.65rem;
 }
 
-@container settings-content (max-width: 42rem) {
-    .config-row {
-        flex-wrap: wrap;
+.config-action {
+    display: inline-flex;
+    align-items: center;
+    padding: .1rem .6rem;
+    border: 1px solid var(--theme-bg-more-2);
+    border-radius: .4rem;
+    background: transparent;
+    color: var(--theme-fg-more);
+    font-size: .82em;
+    line-height: 1.7;
+    cursor: pointer;
+    transition: background .12s, border-color .12s, color .12s;
+
+    &:hover {
+        border-color: color-mix(in srgb, var(--theme-fg) 30%, transparent);
+        background: var(--theme-bg-more);
+        color: var(--theme-fg);
     }
 
-    .config-actions {
-        width: 100%;
-        justify-content: flex-start;
-        padding-left: 2rem;
+    &.danger:hover {
+        border-color: color-mix(in srgb, #e5484d 55%, transparent);
+        background: color-mix(in srgb, #e5484d 10%, transparent);
+        color: #e5484d;
+    }
+
+    &.primary {
+        border-color: color-mix(in srgb, var(--theme-primary) 45%, transparent);
+        color: var(--theme-primary);
+
+        &:hover {
+            border-color: var(--theme-primary);
+            background: color-mix(in srgb, var(--theme-primary) 12%, transparent);
+            color: var(--theme-primary);
+        }
+    }
+}
+
+@container settings-content (max-width: 36rem) {
+    .config-time {
+        display: none;
     }
 }

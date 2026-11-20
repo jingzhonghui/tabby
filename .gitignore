@@ -40,3 +40,4 @@ crowdin.yml
 
 # built from tabby-uac/ by CI; see .github/workflows/build.yml
 extras/UAC.exe
+.workbuddy

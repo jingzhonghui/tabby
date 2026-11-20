@@ -1,0 +1,139 @@
+.group-color {
+    .color-swatches {
+        position: relative;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .45rem;
+        margin-bottom: .6rem;
+    }
+
+    .color-swatch {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.65rem;
+        height: 1.65rem;
+        padding: 0;
+        margin: 0;
+        border: 1px solid color-mix(in srgb, var(--theme-fg) 18%, transparent);
+        border-radius: 50%;
+        background: transparent;
+        color: var(--theme-fg-more);
+        font-size: .72rem;
+        line-height: 1;
+        cursor: pointer;
+        transition: transform .12s ease, box-shadow .12s ease;
+
+        &:hover {
+            transform: scale(1.08);
+        }
+
+        &.selected {
+            // inner ring in the panel background + outer ring in the accent color,
+            // so the selected state works on both light and dark themes.
+            box-shadow:
+                0 0 0 2px var(--theme-bg),
+                0 0 0 4px var(--theme-primary);
+        }
+
+        &.color-none {
+            border-style: dashed;
+            background: transparent;
+
+            i {
+                opacity: .75;
+            }
+        }
+
+        &.color-custom {
+            border-style: dashed;
+            background: transparent;
+
+            &.open {
+                border-style: solid;
+                border-color: var(--theme-primary);
+                box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-primary) 25%, transparent);
+            }
+        }
+    }
+
+    .color-panel {
+        display: flex;
+        flex-direction: column;
+        gap: .5rem;
+        padding: .6rem;
+        margin-bottom: .6rem;
+        border: 1px solid color-mix(in srgb, var(--theme-fg) 12%, transparent);
+        border-radius: .45rem;
+        background: var(--theme-bg-less-2);
+    }
+
+    .color-area {
+        position: relative;
+        height: 7rem;
+        border-radius: .35rem;
+        overflow: hidden;
+        cursor: crosshair;
+        touch-action: none;
+        background-image:
+            linear-gradient(to top, #000, transparent),
+            linear-gradient(to right, #fff, transparent);
+    }
+
+    .color-area-thumb {
+        position: absolute;
+        width: .8rem;
+        height: .8rem;
+        margin: -.4rem 0 0 -.4rem;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, .45);
+        pointer-events: none;
+    }
+
+    .color-hue {
+        position: relative;
+        height: .85rem;
+        border-radius: .425rem;
+        cursor: pointer;
+        touch-action: none;
+        background: linear-gradient(to right,
+            #f00 0%, #ff0 16.66%, #0f0 33.33%,
+            #0ff 50%, #00f 66.66%, #f0f 83.33%, #f00 100%);
+    }
+
+    .color-hue-thumb {
+        position: absolute;
+        top: 50%;
+        width: .85rem;
+        height: .85rem;
+        margin-left: -.425rem;
+        transform: translateY(-50%);
+        border: 2px solid #fff;
+        border-radius: 50%;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, .45);
+        pointer-events: none;
+    }
+
+    .color-value {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+
+        .color-preview {
+            flex: 0 0 auto;
+            width: 1.65rem;
+            height: 1.65rem;
+            border: 1px solid color-mix(in srgb, var(--theme-fg) 18%, transparent);
+            border-radius: .35rem;
+            background: var(--theme-bg-less-2);
+        }
+
+        input.form-control {
+            max-width: 9rem;
+            font-family: monospace;
+        }
+    }
+}

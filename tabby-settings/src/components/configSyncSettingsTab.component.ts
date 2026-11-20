@@ -49,6 +49,29 @@ export class ConfigSyncSettingsTabComponent extends BaseComponent {
         return !!this.activeBackend?.hostEditable
     }
 
+    get configCount (): number {
+        return this.configs?.length ?? 0
+    }
+
+    /** Backends may return an unnamed config (e.g. a gist with an empty description). */
+    displayName (cfg: SyncRemoteConfig): string {
+        return cfg.name.trim() || this.translate.instant('Untitled config')
+    }
+
+    uploadTitle (cfg: SyncRemoteConfig): string {
+        if (this.isActiveConfig(cfg)) {
+            return this.translate.instant('Upload')
+        }
+        return this.translate.instant('Overwrite remote and sync')
+    }
+
+    uploadLabel (cfg: SyncRemoteConfig): string {
+        if (this.isActiveConfig(cfg)) {
+            return this.translate.instant('Upload')
+        }
+        return this.translate.instant('Replace')
+    }
+
     get canConnect (): boolean {
         if (!this.config.store.configSync.token) {
             return false

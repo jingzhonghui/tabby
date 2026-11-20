@@ -74,54 +74,62 @@ ul.nav-tabs(ngbNav, #nav='ngbNav')
 
             ng-container(*ngIf='connectionSuccessful')
                 .form-line
-                    .header
+                    .header.d-flex.align-items-center
                         .title(translate) Configs
+                        span.config-count.ms-2(*ngIf='configCount') {{configCount}}
 
                 div(*ngIf='configs === null')
                     i.fas.fa-fw.fa-circle-notch.fa-spin
                     span.ms-2(translate) Loading configs...
 
-                ng-container(*ngIf='configs !== null')
-                    .list-group.list-group-light
-                        .list-group-item.config-row(
-                            *ngFor='let cfg of configs',
-                            [class.active]='isActiveConfig(cfg)',
-                        )
-                            i.fas.fa-fw.text-success([class.fa-check]='isActiveConfig(cfg)')
-                            i.fas.fa-fw.fa-file
-                            .ms-2.d-flex.flex-column.align-items-start.config-copy
-                                div {{cfg.name}}
-                                small.text-muted(
-                                    translate='Modified on {date}',
-                                    [translateParams]='{date: cfg.modified_at|tabbyDate}'
-                                )
-                            .config-actions
-                                button.btn.btn-link.ms-1(
-                                    (click)='uploadAndSync(cfg)',
-                                    [class.hover-reveal]='!isActiveConfig(cfg)'
-                                )
-                                    i.fas.fa-arrow-up
-                                    span.ms-2(*ngIf='isActiveConfig(cfg)', translate) Upload
-                                    span.ms-2(*ngIf='!isActiveConfig(cfg)', translate) Replace
-                                button.btn.btn-link.ms-1(
-                                    (click)='downloadAndSync(cfg)',
-                                    [class.hover-reveal]='!isActiveConfig(cfg)'
-                                )
-                                    i.fas.fa-arrow-down
-                                    span.ms-2(translate) Download
-                                button.btn.btn-link.ms-1(
-                                    (click)='delete(cfg)',
-                                    [class.hover-reveal]='!isActiveConfig(cfg)'
-                                )
-                                    i.fas.fa-trash
-                                    span.ms-2(translate) Delete
-                        a.list-group-item.list-group-item-action.d-flex.align-items-center(
-                            href='#',
-                            (click)='uploadAsNew()'
-                        )
-                            i.fas.fa-fw
-                            i.fas.fa-fw.fa-cloud-upload-alt
-                            .ms-2(translate) Upload as a new config
+                .list-group.list-group-light.config-list(*ngIf='configs !== null')
+                    .list-group-item.config-row(
+                        *ngFor='let cfg of configs',
+                        [class.active]='isActiveConfig(cfg)'
+                    )
+                        .config-head
+                            .config-state
+                                i.fas.fa-check.text-success(*ngIf='isActiveConfig(cfg)')
+                                i.fas.fa-cloud(*ngIf='!isActiveConfig(cfg)')
+
+                            .config-name([title]='displayName(cfg)') {{displayName(cfg)}}
+                            span.config-badge(*ngIf='activeBackend?.name') {{activeBackend.name}}
+                            span.config-badge(*ngIf='cfg.last_used_with_version') v{{cfg.last_used_with_version}}
+
+                            span.config-time(
+                                translate='Modified on {date}',
+                                [translateParams]='{date: cfg.modified_at|tabbyDate}'
+                            )
+
+                        .config-actions
+                            button.config-action(
+                                type='button',
+                                (click)='uploadAndSync(cfg)',
+                                [title]='uploadTitle(cfg)'
+                            )
+                                i.fas.fa-arrow-up
+                                span.ms-1 {{uploadLabel(cfg)}}
+                            button.config-action(
+                                type='button',
+                                (click)='downloadAndSync(cfg)',
+                                [title]='"Download"|translate'
+                            )
+                                i.fas.fa-arrow-down
+                                span.ms-1(translate) Download
+                            button.config-action.danger(
+                                type='button',
+                                (click)='delete(cfg)',
+                                [title]='"Delete"|translate'
+                            )
+                                i.fas.fa-trash
+                                span.ms-1(translate) Delete
+                            button.config-action(
+                                type='button',
+                                (click)='uploadAsNew()',
+                                [title]='"Upload as a new config"|translate'
+                            )
+                                i.fas.fa-plus
+                                span.ms-1(translate) Upload as a new config
 
             ng-container(*ngIf='hasMatchingRemoteConfig()')
                 .form-line

@@ -40,20 +40,53 @@
                     i([class]='"fa-fw " + r')
                     ngb-highlight.ms-2([result]='r', [term]='t')
 
-            .mb-3
+            .mb-3.group-color
                 label(translate) Color
-                .input-group
-                    input.form-control.color-picker(
-                        type='color',
-                        [(ngModel)]='group.color',
-                        [ngbTypeahead]='colorsAutocomplete',
-                        [resultFormatter]='colorsFormatter'
+                .color-swatches
+                    button.color-swatch(
+                        type='button',
+                        *ngFor='let c of presetColors',
+                        [class.selected]='isSelectedColor(c.value)',
+                        [style.background]='c.value',
+                        [title]='c.name|translate',
+                        (click)='selectColor(c.value)'
                     )
+                    button.color-swatch.color-none(
+                        type='button',
+                        [class.selected]='!group.color',
+                        [title]='"No color"|translate',
+                        (click)='selectColor(null)'
+                    )
+                        i.fas.fa-ban
+                    button.color-swatch.color-custom(
+                        type='button',
+                        [class.selected]='isCustomColor()',
+                        [class.open]='customPanelOpen',
+                        [style.background]='isCustomColor() ? group.color : null',
+                        [title]='"Custom"|translate',
+                        (click)='toggleCustomPanel()'
+                    )
+                        i.fas.fa-eye-dropper(*ngIf='!isCustomColor()')
+
+                .color-panel(*ngIf='customPanelOpen')
+                    .color-area(
+                        (pointerdown)='onAreaPointerDown($event)',
+                        [style.background-color]='hueColor'
+                    )
+                        .color-area-thumb(
+                            [style.left.%]='hsv.s * 100',
+                            [style.top.%]='(1 - hsv.v) * 100'
+                        )
+                    .color-hue((pointerdown)='onHuePointerDown($event)')
+                        .color-hue-thumb([style.left.%]='hsv.h / 3.6')
+
+                .color-value
+                    span.color-preview([style.background]='group.color')
                     input.form-control(
                         type='text',
-                        [(ngModel)]='group.color',
-                        [ngbTypeahead]='colorsAutocomplete',
-                        [resultFormatter]='colorsFormatter'
+                        [ngModel]='group.color',
+                        (ngModelChange)='onHexChange($event)',
+                        placeholder='#RRGGBB'
                     )
 
         .col-12.col-lg-8(*ngIf='providers.length !== 0')

@@ -14,6 +14,8 @@ export const DEFAULT_CONFIG_SYNC_BACKEND = 'tabby-web'
 export class ConfigSyncService {
     private logger: Logger
     private lastRemoteChange = new Date(0)
+    /** Set while a remote config is being written to the local one, to avoid echoing it straight back up. */
+    private applyingRemote = false
 
     constructor (
         log: LogService,
@@ -26,6 +28,9 @@ export class ConfigSyncService {
         config.ready$.toPromise().then(() => {
             this.autoSync()
             config.changed$.subscribe(() => {
+                if (this.applyingRemote) {
+                    return
+                }
                 if (this.isEnabled() && this.config.store.configSync.auto) {
                     this.upload()
                 }
@@ -149,6 +154,7 @@ export class ConfigSyncService {
             }
 
             await this.writeConfigDataFromSync(data)
+            this.lastRemoteChange = new Date(config.modified_at)
             this.logger.debug('Config downloaded')
         } catch (error) {
             this.logger.error('Download failed:', error)
@@ -181,9 +187,18 @@ export class ConfigSyncService {
     }
 
     private async writeConfigDataFromSync (data: any) {
-        await this.platform.saveConfig(yaml.dump(data))
-        await this.config.load()
-        await this.config.save()
+        // Applying a remote config saves it locally, which in turn emits
+        // `changed$`. Without this guard the automatic upload would push the
+        // freshly downloaded config straight back, bumping the remote timestamp
+        // and making two syncing machines overwrite each other in a loop.
+        this.applyingRemote = true
+        try {
+            await this.platform.saveConfig(yaml.dump(data))
+            await this.config.load()
+            await this.config.save()
+        } finally {
+            this.applyingRemote = false
+        }
     }
 
     private async autoSync () {
@@ -193,8 +208,9 @@ export class ConfigSyncService {
                     const cfg = await this.getConfig(this.config.store.configSync.configID)
                     if (new Date(cfg.modified_at) > this.lastRemoteChange) {
                         this.logger.info('Remote config changed, downloading')
-                        this.download()
-                        this.lastRemoteChange = new Date(cfg.modified_at)
+                        // download() records the remote timestamp itself so that
+                        // a failed download is simply retried on the next tick.
+                        await this.download()
                     }
                 }
             } catch (error) {

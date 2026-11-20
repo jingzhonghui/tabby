@@ -2877,3 +2877,7 @@ msgstr ""
 
 msgid "Where the configuration is stored"
 msgstr ""
+
+#: tabby-settings/src/components/configSyncSettingsTab.component.ts
+msgid "Untitled config"
+msgstr ""

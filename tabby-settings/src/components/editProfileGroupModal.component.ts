@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import { Component, Input } from '@angular/core'
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap'
-import { Observable, OperatorFunction, debounceTime, map, distinctUntilChanged } from 'rxjs'
+import { Observable, OperatorFunction, debounceTime, map } from 'rxjs'
 import { ConfigProxy, ProfileGroup, Profile, ProfileProvider, PlatformService, TranslateService, PartialProfileGroup, ProfilesService, TAB_COLORS } from 'tabby-core'
 
 const iconsData = require('../../../tabby-core/src/icons.json')
@@ -11,9 +11,85 @@ const iconsClassList = Object.keys(iconsData).map(
     ),
 ).flat()
 
+interface Hsv {
+    h: number
+    s: number
+    v: number
+}
+
+interface Rgb {
+    r: number
+    g: number
+    b: number
+}
+
+function parseHexColor (value: string|undefined|null): Rgb|null {
+    if (!value) {
+        return null
+    }
+    let hex = value.trim().replace(/^#/, '')
+    if (hex.length === 3) {
+        hex = hex.split('').map(x => x + x).join('')
+    }
+    if (!/^[0-9a-f]{6}$/i.test(hex)) {
+        return null
+    }
+    return {
+        r: parseInt(hex.slice(0, 2), 16),
+        g: parseInt(hex.slice(2, 4), 16),
+        b: parseInt(hex.slice(4, 6), 16),
+    }
+}
+
+function rgbToHsv ({ r, g, b }: Rgb): Hsv {
+    const rn = r / 255
+    const gn = g / 255
+    const bn = b / 255
+    const max = Math.max(rn, gn, bn)
+    const diff = max - Math.min(rn, gn, bn)
+    let h = 0
+    if (diff !== 0) {
+        if (max === rn) {
+            h = ((gn - bn) / diff) % 6
+        } else if (max === gn) {
+            h = (bn - rn) / diff + 2
+        } else {
+            h = (rn - gn) / diff + 4
+        }
+        h *= 60
+        if (h < 0) {
+            h += 360
+        }
+    }
+    return { h, s: max === 0 ? 0 : diff / max, v: max }
+}
+
+function hsvToHex ({ h, s, v }: Hsv): string {
+    const chroma = v * s
+    const x = chroma * (1 - Math.abs(((h / 60) % 2) - 1))
+    const m = v - chroma
+    const sector = Math.floor(h / 60) % 6
+    const channels = [
+        [chroma, x, 0],
+        [x, chroma, 0],
+        [0, chroma, x],
+        [0, x, chroma],
+        [x, 0, chroma],
+        [chroma, 0, x],
+    ][sector]
+    return '#' + channels
+        .map(channel => Math.round((channel + m) * 255).toString(16).padStart(2, '0'))
+        .join('')
+}
+
+function clamp01 (value: number): number {
+    return Math.min(1, Math.max(0, value))
+}
+
 /** @hidden */
 @Component({
     templateUrl: './editProfileGroupModal.component.pug',
+    styleUrls: ['./editProfileGroupModal.component.scss'],
 })
 export class EditProfileGroupModalComponent<G extends ProfileGroup> {
     @Input() group: G & ConfigProxy<G>
@@ -77,18 +153,115 @@ export class EditProfileGroupModalComponent<G extends ProfileGroup> {
         return path.length ? path.join(' / ') : group.name
     }
 
-    colorsAutocomplete = text$ => text$.pipe(
-        debounceTime(200),
-        distinctUntilChanged(),
-        map((q: string) =>
-            TAB_COLORS
-                .filter(x => !q || x.name.toLowerCase().startsWith(q.toLowerCase()))
-                .map(x => x.value),
-        ),
-    )
+    presetColors = TAB_COLORS.filter(x => x.value)
 
-    colorsFormatter = value => {
-        return TAB_COLORS.find(x => x.value === value)?.name ?? value
+    customPanelOpen = false
+    hsv: Hsv = rgbToHsv({ r: 2, g: 117, b: 216 })
+
+    private areaEl: HTMLElement|null = null
+    private hueEl: HTMLElement|null = null
+    private dragging: 'area'|'hue'|null = null
+
+    selectColor (value: string|null): void {
+        this.group.color = value ?? undefined
+        this.customPanelOpen = false
+    }
+
+    isSelectedColor (value: string|null): boolean {
+        return (this.group.color ?? null) === value
+    }
+
+    isCustomColor (): boolean {
+        const color = this.group.color
+        if (!color || color === 'null') {
+            return false
+        }
+        return !TAB_COLORS.some(x => x.value?.toLowerCase() === color.toLowerCase())
+    }
+
+    get hueColor (): string {
+        return `hsl(${this.hsv.h.toFixed(1)}, 100%, 50%)`
+    }
+
+    toggleCustomPanel (): void {
+        this.customPanelOpen = !this.customPanelOpen
+        if (this.customPanelOpen) {
+            const rgb = parseHexColor(this.group.color)
+            if (rgb) {
+                this.hsv = rgbToHsv(rgb)
+            }
+        }
+    }
+
+    onAreaPointerDown (event: PointerEvent): void {
+        event.preventDefault()
+        this.areaEl = event.currentTarget as HTMLElement
+        this.dragging = 'area'
+        this.updateFromArea(event)
+        this.startTracking()
+    }
+
+    onHuePointerDown (event: PointerEvent): void {
+        event.preventDefault()
+        this.hueEl = event.currentTarget as HTMLElement
+        this.dragging = 'hue'
+        this.updateFromHue(event)
+        this.startTracking()
+    }
+
+    onHexChange (value: string): void {
+        this.group.color = value
+        const rgb = parseHexColor(value)
+        if (rgb) {
+            const next = rgbToHsv(rgb)
+            // a pure grey carries no hue - keep the slider where the user left it
+            this.hsv = next.s === 0 ? { ...next, h: this.hsv.h } : next
+        }
+    }
+
+    ngOnDestroy (): void {
+        this.onPointerUp()
+    }
+
+    private startTracking (): void {
+        document.addEventListener('pointermove', this.onPointerMove)
+        document.addEventListener('pointerup', this.onPointerUp)
+    }
+
+    private onPointerMove = (event: PointerEvent): void => {
+        if (this.dragging === 'area') {
+            this.updateFromArea(event)
+        } else if (this.dragging === 'hue') {
+            this.updateFromHue(event)
+        }
+    }
+
+    private onPointerUp = (): void => {
+        this.dragging = null
+        document.removeEventListener('pointermove', this.onPointerMove)
+        document.removeEventListener('pointerup', this.onPointerUp)
+    }
+
+    private updateFromArea (event: PointerEvent): void {
+        if (!this.areaEl) {
+            return
+        }
+        const rect = this.areaEl.getBoundingClientRect()
+        this.hsv = {
+            ...this.hsv,
+            s: clamp01((event.clientX - rect.left) / rect.width),
+            v: 1 - clamp01((event.clientY - rect.top) / rect.height),
+        }
+        this.group.color = hsvToHex(this.hsv)
+    }
+
+    private updateFromHue (event: PointerEvent): void {
+        if (!this.hueEl) {
+            return
+        }
+        const rect = this.hueEl.getBoundingClientRect()
+        this.hsv = { ...this.hsv, h: clamp01((event.clientX - rect.left) / rect.width) * 359.9 }
+        this.group.color = hsvToHex(this.hsv)
     }
 
     iconSearch: OperatorFunction<string, string[]> = (text$: Observable<string>) =>
